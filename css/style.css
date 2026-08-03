@@ -22,8 +22,8 @@ body { margin: 0; background: var(--paper); color: var(--ink); }
   position: sticky; top: 0; z-index: 10;
 }
 .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 1.1rem; }
-.brand-mark { width: 32px; height: 32px; object-fit: contain; border-radius: 6px; }
-.brand-mark.big { width: 96px; height: 96px; border-radius: 14px; margin-bottom: 6px; }
+.brand-mark { width: 44px; height: 44px; object-fit: contain; border-radius: 6px; }
+.brand-mark.big { width: 130px; height: 130px; border-radius: 16px; margin-bottom: 6px; }
 
 nav#mainNav { display: flex; gap: 4px; flex-wrap: wrap; }
 .nav-btn {
@@ -69,6 +69,8 @@ code { background: #eee; padding: 2px 6px; border-radius: 4px; }
 .doc-card-main { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
 .doc-card-main .muted { color: #888; font-size: 0.8rem; }
 .doc-card-total { font-weight: 700; }
+.doc-card-right { display: flex; align-items: center; gap: 10px; }
+.btn-sm { padding: 5px 10px; font-size: 0.78rem; }
 .pill { background: var(--blue); color: white; font-size: 0.7rem; padding: 2px 8px; border-radius: 20px; }
 
 /* ---- Forms ---- */
@@ -87,6 +89,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--blue); bord
 .btn-remove-item { background: none; border: none; color: var(--red); font-size: 1rem; cursor: pointer; }
 
 .totals-preview { text-align: right; font-weight: 600; margin: 14px 0; color: var(--blue-dark); }
+.form-actions { display: flex; gap: 10px; }
 
 /* ---- Tabs ---- */
 .tabs { display: flex; gap: 8px; margin-bottom: 14px; }
