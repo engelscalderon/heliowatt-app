@@ -30,8 +30,8 @@ function generateDocPdf(doc, tipo) {
   pdf.text(c.telefonos, margin + 12, y + 83);
 
   if (typeof LOGO_BASE64 !== "undefined") {
-    const logoSize = 64;
-    pdf.addImage(LOGO_BASE64, "PNG", pageW - margin - logoSize - 12, y + 13, logoSize, logoSize);
+    const logoSize = 84;
+    pdf.addImage(LOGO_BASE64, "PNG", pageW - margin - logoSize - 6, y + 3, logoSize, logoSize);
   }
 
   y += 100;
@@ -95,8 +95,8 @@ function generateDocPdf(doc, tipo) {
   const rows = doc.items.map(it => [
     it.cantidad.toFixed(2),
     it.descripcion,
-    `$ ${it.precio.toFixed(2)}`,
-    `$ ${(it.cantidad * it.precio).toFixed(2)}`
+    `$ ${fmtMoney(it.precio)}`,
+    `$ ${fmtMoney(it.cantidad * it.precio)}`
   ]);
 
   pdf.autoTable({
@@ -135,10 +135,10 @@ function generateDocPdf(doc, tipo) {
   pdf.rect(totalsX, y, totalsW, rowH);
   pdf.setFont("helvetica", "bold");
   pdf.text("SUBTOTAL", totalsX + 4, y + 11);
-  pdf.text(`$ ${doc.subtotal.toFixed(2)}`, totalsX + totalsW - 4, y + 11, { align: "right" });
+  pdf.text(`$ ${fmtMoney(doc.subtotal)}`, totalsX + totalsW - 4, y + 11, { align: "right" });
 
   pdf.rect(totalsX, y + rowH, totalsW, rowH);
-  pdf.text("ITEBIS", totalsX + 4, y + rowH + 11);
+  pdf.text("ITBIS", totalsX + 4, y + rowH + 11);
   pdf.text("18%", totalsX + totalsW - 4, y + rowH + 11, { align: "right" });
 
   pdf.setFillColor(235, 235, 235);
@@ -146,7 +146,7 @@ function generateDocPdf(doc, tipo) {
   pdf.rect(totalsX, y + rowH * 2, totalsW, rowH);
   pdf.setFontSize(10);
   pdf.text("TOTAL", totalsX + 4, y + rowH * 2 + 12);
-  pdf.text(`$ ${doc.total.toFixed(2)}`, totalsX + totalsW - 4, y + rowH * 2 + 12, { align: "right" });
+  pdf.text(`$ ${fmtMoney(doc.total)}`, totalsX + totalsW - 4, y + rowH * 2 + 12, { align: "right" });
 
   y += rowH * 3 + 20;
 

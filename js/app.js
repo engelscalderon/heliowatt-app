@@ -4,6 +4,26 @@
 function $(sel, root = document) { return root.querySelector(sel); }
 function $all(sel, root = document) { return Array.from(root.querySelectorAll(sel)); }
 
+let editContext = null; // { tipo: 'cotizacion'|'factura', id } cuando se está editando un documento existente
+
+function renderDatalists() {
+  let dlC = $("#dl-clientes");
+  if (!dlC) {
+    dlC = document.createElement("datalist");
+    dlC.id = "dl-clientes";
+    document.body.appendChild(dlC);
+  }
+  dlC.innerHTML = DB.catalog.clientes.map(c => `<option value="${c.cliente}">`).join("");
+
+  let dlI = $("#dl-items");
+  if (!dlI) {
+    dlI = document.createElement("datalist");
+    dlI.id = "dl-items";
+    document.body.appendChild(dlI);
+  }
+  dlI.innerHTML = DB.catalog.items.map(i => `<option value="${i.descripcion}">`).join("");
+}
+
 function showLoading(text) {
   $("#loadingText").textContent = text || "Cargando…";
   $("#loadingOverlay").classList.remove("hidden");
@@ -23,10 +43,22 @@ function showView(name) {
   $(`#view-${name}`).classList.remove("hidden");
   $all(".nav-btn").forEach(b => b.classList.toggle("active", b.dataset.view === name));
   if (name === "dashboard") renderDashboard();
-  if (name === "cotizacion") renderForm("cotForm", "cotizacion");
-  if (name === "factura") { renderFacturaSelect(); renderForm("facForm", "factura"); }
+  if (name === "cotizacion") { editContext = null; renderForm("cotForm", "cotizacion"); }
+  if (name === "factura") { editContext = null; renderFacturaSelect(); renderForm("facForm", "factura"); }
   if (name === "historial") renderHistorial();
   if (name === "ncf") renderNcf();
+}
+
+function editDocument(tipo, id) {
+  const list = tipo === "factura" ? DB.facturas : DB.cotizaciones;
+  const doc = list.find(d => d.id === id);
+  if (!doc) return;
+  editContext = { tipo, id };
+  $all(".view").forEach(v => v.classList.add("hidden"));
+  $(`#view-${tipo}`).classList.remove("hidden");
+  $all(".nav-btn").forEach(b => b.classList.toggle("active", b.dataset.view === tipo));
+  if (tipo === "factura") renderFacturaSelect();
+  renderForm(tipo === "factura" ? "facForm" : "cotForm", tipo, doc);
 }
 
 // ---------------- Formularios de documento ----------------
@@ -34,17 +66,18 @@ function itemRowHtml(idx) {
   return `
   <div class="item-row" data-idx="${idx}">
     <input type="number" class="it-cant" placeholder="Cant." step="0.01" value="1" required>
-    <input type="text" class="it-desc" placeholder="Descripción" required>
+    <input type="text" class="it-desc" placeholder="Descripción" list="dl-items" required>
     <input type="number" class="it-precio" placeholder="Precio unit." step="0.01" required>
     <button type="button" class="btn-remove-item">✕</button>
   </div>`;
 }
 
-function renderForm(formId, tipo) {
+function renderForm(formId, tipo, prefillDoc) {
   const form = $(`#${formId}`);
+  const isEdit = !!prefillDoc;
   form.innerHTML = `
     <div class="field-grid">
-      <div class="field"><label>Cliente</label><input name="cliente" required></div>
+      <div class="field"><label>Cliente</label><input name="cliente" list="dl-clientes" required></div>
       <div class="field"><label>RNC / Cédula del cliente</label><input name="rnc"></div>
       <div class="field"><label>Dirección del cliente</label><input name="direccion"></div>
       <div class="field"><label>Atención (contacto)</label><input name="atencion"></div>
@@ -63,10 +96,24 @@ function renderForm(formId, tipo) {
       <textarea name="comentarios" rows="2"></textarea>
     </div>
 
-    <div class="totals-preview" id="${formId}-totals">Subtotal: $0.00 · ITEBIS: $0.00 · Total: $0.00</div>
+    <div class="totals-preview" id="${formId}-totals">Subtotal: $0.00 · ITBIS: $0.00 · Total: $0.00</div>
 
-    <button type="submit" class="btn btn-primary">${tipo === "factura" ? "Generar factura" : "Generar cotización"}</button>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">${isEdit ? "Guardar cambios" : (tipo === "factura" ? "Generar factura" : "Generar cotización")}</button>
+      ${isEdit ? `<button type="button" class="btn btn-outline" id="${formId}-cancelEdit">Cancelar edición</button>` : ""}
+    </div>
   `;
+
+  // Autollenado de datos del cliente si coincide con el catálogo
+  form.cliente.addEventListener("change", () => {
+    const match = DB.catalog.clientes.find(c => c.cliente.trim().toLowerCase() === form.cliente.value.trim().toLowerCase());
+    if (match) {
+      form.rnc.value = match.rnc || form.rnc.value;
+      form.direccion.value = match.direccion || form.direccion.value;
+      form.atencion.value = match.atencion || form.atencion.value;
+      form.idCliente.value = match.idCliente || form.idCliente.value;
+    }
+  });
 
   const itemsWrap = $(`#${formId}-items`);
   $(`#${formId}-addItem`).onclick = () => {
@@ -76,11 +123,42 @@ function renderForm(formId, tipo) {
   };
   wireItemRow(itemsWrap.firstElementChild, formId);
 
+  if (isEdit) {
+    form.cliente.value = prefillDoc.cliente || "";
+    form.rnc.value = prefillDoc.rnc || "";
+    form.direccion.value = prefillDoc.direccion || "";
+    form.atencion.value = prefillDoc.atencion || "";
+    form.idCliente.value = prefillDoc.idCliente || "";
+    form.trabajo.value = prefillDoc.trabajo || "";
+    form.condiciones.value = prefillDoc.condiciones || "";
+    form.vencimiento.value = prefillDoc.vencimiento || "";
+    form.comentarios.value = prefillDoc.comentarios || "";
+    itemsWrap.innerHTML = prefillDoc.items.map((it, i) => itemRowHtml(i)).join("");
+    $all(`#${formId}-items .item-row`).forEach((row, i) => {
+      row.querySelector(".it-cant").value = prefillDoc.items[i].cantidad;
+      row.querySelector(".it-desc").value = prefillDoc.items[i].descripcion;
+      row.querySelector(".it-precio").value = prefillDoc.items[i].precio;
+      wireItemRow(row, formId);
+    });
+    updateTotalsPreview(formId);
+    const cancelBtn = $(`#${formId}-cancelEdit`);
+    if (cancelBtn) cancelBtn.onclick = () => { editContext = null; showView("historial"); };
+  }
+
   form.onsubmit = (e) => { e.preventDefault(); submitDoc(formId, tipo, form); };
 }
 
 function wireItemRow(row, formId) {
   row.querySelectorAll("input").forEach(inp => inp.addEventListener("input", () => updateTotalsPreview(formId)));
+  const descInput = row.querySelector(".it-desc");
+  const precioInput = row.querySelector(".it-precio");
+  descInput.addEventListener("change", () => {
+    const match = DB.catalog.items.find(i => i.descripcion.trim().toLowerCase() === descInput.value.trim().toLowerCase());
+    if (match && !precioInput.value) {
+      precioInput.value = match.precio;
+      updateTotalsPreview(formId);
+    }
+  });
   row.querySelector(".btn-remove-item").onclick = () => {
     if ($(`#${formId}-items`).children.length > 1) { row.remove(); updateTotalsPreview(formId); }
   };
@@ -98,7 +176,7 @@ function updateTotalsPreview(formId) {
   const items = readItems(formId);
   const t = calcTotals(items);
   $(`#${formId}-totals`).textContent =
-    `Subtotal: $${t.subtotal.toFixed(2)} · ITEBIS: $${t.itebis.toFixed(2)} · Total: $${t.total.toFixed(2)}`;
+    `Subtotal: $${fmtMoney(t.subtotal)} · ITBIS: $${fmtMoney(t.itebis)} · Total: $${fmtMoney(t.total)}`;
 }
 
 function renderFacturaSelect() {
@@ -133,19 +211,23 @@ async function submitDoc(formId, tipo, form) {
   const items = readItems(formId);
   if (items.length === 0) { toast("Agrega al menos un renglón", true); return; }
 
+  const isEditing = editContext && editContext.tipo === tipo;
+  const totals = calcTotals(items);
+  const list = tipo === "factura" ? DB.facturas : DB.cotizaciones;
+  const existing = isEditing ? list.find(d => d.id === editContext.id) : null;
+
   let ncfItem = null;
-  if (tipo === "factura") {
+  if (tipo === "factura" && !isEditing) {
     ncfItem = nextAvailableNcf();
     if (!ncfItem) { toast("No quedan comprobantes NCF disponibles. Agrega un nuevo rango en 'Comprobantes'.", true); return; }
   }
 
-  const totals = calcTotals(items);
-  const numero = nextDocNumber(tipo);
-  const now = new Date();
+  const numero = isEditing ? existing.numero : nextDocNumber(tipo);
+  const fecha = isEditing ? existing.fecha : fmtDate(new Date());
   const doc = {
-    id: crypto.randomUUID(),
+    id: isEditing ? existing.id : crypto.randomUUID(),
     numero,
-    fecha: fmtDate(now),
+    fecha,
     cliente: form.cliente.value,
     rnc: form.rnc.value,
     direccion: form.direccion.value,
@@ -159,34 +241,49 @@ async function submitDoc(formId, tipo, form) {
     ...totals
   };
   if (tipo === "factura") {
-    doc.ncf = ncfItem.comprobante;
-    const sel = $("#facturaFromCot").value;
-    if (sel) doc.cotizacionId = sel;
+    doc.ncf = isEditing ? existing.ncf : ncfItem.comprobante;
+    if (isEditing && existing.cotizacionId) doc.cotizacionId = existing.cotizacionId;
+    const sel = $("#facturaFromCot") ? $("#facturaFromCot").value : "";
+    if (!isEditing && sel) doc.cotizacionId = sel;
   }
 
-  showLoading(`Generando ${tipo}…`);
+  showLoading(isEditing ? "Guardando cambios…" : `Generando ${tipo}…`);
   try {
     const blob = generateDocPdf(doc, tipo);
-    const filename = `${tipo === "factura" ? "FACT" : "COT"}-${numero.replace("/", "-")}-${doc.cliente.replace(/[^a-zA-Z0-9]/g, "_")}.pdf`;
-    const subfolder = tipo === "factura" ? "Facturas" : "Cotizaciones";
-    const path = await uploadPdf(subfolder, filename, blob);
+    let path;
+    if (isEditing && existing.pdfPath) {
+      const parts = existing.pdfPath.split("/");
+      const filename = parts.pop();
+      const subfolder = parts.pop();
+      path = await uploadPdf(subfolder, filename, blob);
+    } else {
+      const filename = `${tipo === "factura" ? "FACT" : "COT"}-${numero.replace("/", "-")}-${doc.cliente.replace(/[^a-zA-Z0-9]/g, "_")}.pdf`;
+      const subfolder = tipo === "factura" ? "Facturas" : "Cotizaciones";
+      path = await uploadPdf(subfolder, filename, blob);
+    }
     doc.pdfPath = path;
 
-    if (tipo === "factura") {
+    if (isEditing) {
+      const idx = list.findIndex(d => d.id === existing.id);
+      list[idx] = doc;
+    } else if (tipo === "factura") {
       marcarNcfUsado(ncfItem.comprobante);
       DB.facturas.push(doc);
     } else {
       DB.cotizaciones.push(doc);
     }
+    upsertCatalog(doc);
     await dbSave();
+    renderDatalists();
 
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url; a.download = filename; a.click();
+    a.href = url; a.download = path.split("/").pop(); a.click();
 
-    toast(`${tipo === "factura" ? "Factura" : "Cotización"} ${numero} generada y guardada en OneDrive`);
+    toast(`${tipo === "factura" ? "Factura" : "Cotización"} ${numero} ${isEditing ? "actualizada" : "generada"} y guardada en OneDrive`);
+    editContext = null;
     form.reset();
-    showView("dashboard");
+    showView(isEditing ? "historial" : "dashboard");
   } catch (e) {
     console.error(e);
     toast("Error al generar/guardar: " + e.message, true);
@@ -196,7 +293,7 @@ async function submitDoc(formId, tipo, form) {
 }
 
 // ---------------- Dashboard / historial / NCF ----------------
-function docCardHtml(doc, tipo) {
+function docCardHtml(doc, tipo, editable) {
   return `
   <div class="doc-card">
     <div class="doc-card-main">
@@ -205,7 +302,10 @@ function docCardHtml(doc, tipo) {
       <span class="muted">${doc.fecha}</span>
       ${tipo === "factura" ? `<span class="pill">NCF ${doc.ncf}</span>` : ""}
     </div>
-    <div class="doc-card-total">$${doc.total.toFixed(2)}</div>
+    <div class="doc-card-right">
+      <div class="doc-card-total">$${fmtMoney(doc.total)}</div>
+      ${editable ? `<button type="button" class="btn btn-outline btn-sm" onclick="editDocument('${tipo}','${doc.id}')">Editar</button>` : ""}
+    </div>
   </div>`;
 }
 
@@ -223,8 +323,8 @@ function renderDashboard() {
 }
 
 function renderHistorial() {
-  $("#histCotizaciones").innerHTML = DB.cotizaciones.slice().reverse().map(d => docCardHtml(d, "cotizacion")).join("") || `<p class="hint">Sin cotizaciones.</p>`;
-  $("#histFacturas").innerHTML = DB.facturas.slice().reverse().map(d => docCardHtml(d, "factura")).join("") || `<p class="hint">Sin facturas.</p>`;
+  $("#histCotizaciones").innerHTML = DB.cotizaciones.slice().reverse().map(d => docCardHtml(d, "cotizacion", true)).join("") || `<p class="hint">Sin cotizaciones.</p>`;
+  $("#histFacturas").innerHTML = DB.facturas.slice().reverse().map(d => docCardHtml(d, "factura", true)).join("") || `<p class="hint">Sin facturas.</p>`;
   $all(".tab-btn").forEach(b => b.onclick = () => {
     $all(".tab-btn").forEach(x => x.classList.remove("active"));
     b.classList.add("active");
@@ -257,11 +357,19 @@ function renderNcf() {
 
 // ---------------- Arranque ----------------
 async function boot() {
-  await authInit();
   $("#loginBtn").onclick = authLogin;
   $("#loginBtnCenter").onclick = authLogin;
   $("#logoutBtn").onclick = authLogout;
   $all(".nav-btn").forEach(b => b.onclick = () => showView(b.dataset.view));
+
+  try {
+    await authInit();
+  } catch (e) {
+    console.error(e);
+    toast(e.message, true);
+    showView("login");
+    return;
+  }
 
   if (activeAccount) {
     $("#userLabel").textContent = activeAccount.username;
@@ -275,6 +383,7 @@ async function boot() {
     try {
       await ensureFolders();
       await dbLoad();
+      renderDatalists();
       showView("dashboard");
     } catch (e) {
       console.error(e);

@@ -10,6 +10,11 @@ function defaultDb() {
       cotizacion: 0,
       factura: 0
     },
+    // Catálogo de clientes e items usados anteriormente, para autollenado (como una mini base de datos)
+    catalog: {
+      clientes: [], // {cliente, rnc, direccion, atencion, idCliente}
+      items: []     // {descripcion, precio}
+    },
     // Comprobantes fiscales (NCF) disponibles para usar en facturas.
     // Precargado con el talonario inicial de HelioWatt (B0200000001-B0200000010).
     ncfPool: [
@@ -37,6 +42,7 @@ async function dbLoad() {
     DB = defaultDb();
     await writeDb(DB);
   }
+  if (!DB.catalog) DB.catalog = { clientes: [], items: [] };
   return DB;
 }
 
@@ -46,6 +52,10 @@ async function dbSave() {
 
 function fmtDate(d) {
   return d.toLocaleDateString("es-DO", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
+function fmtMoney(n) {
+  return (n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function nextDocNumber(tipo) {
@@ -80,4 +90,28 @@ function calcTotals(items) {
   const itebis = Math.round(subtotal * APP_CONFIG.company.itebis * 100) / 100;
   const total = Math.round((subtotal + itebis) * 100) / 100;
   return { subtotal, itebis, total };
+}
+
+function upsertCatalog(doc) {
+  if (doc.cliente) {
+    const key = doc.cliente.trim().toLowerCase();
+    const idx = DB.catalog.clientes.findIndex(c => c.cliente.trim().toLowerCase() === key);
+    const entry = {
+      cliente: doc.cliente,
+      rnc: doc.rnc || "",
+      direccion: doc.direccion || "",
+      atencion: doc.atencion || "",
+      idCliente: doc.idCliente || ""
+    };
+    if (idx >= 0) DB.catalog.clientes[idx] = entry;
+    else DB.catalog.clientes.push(entry);
+  }
+  (doc.items || []).forEach(it => {
+    if (!it.descripcion) return;
+    const key = it.descripcion.trim().toLowerCase();
+    const idx = DB.catalog.items.findIndex(x => x.descripcion.trim().toLowerCase() === key);
+    const entry = { descripcion: it.descripcion, precio: it.precio };
+    if (idx >= 0) DB.catalog.items[idx] = entry;
+    else DB.catalog.items.push(entry);
+  });
 }

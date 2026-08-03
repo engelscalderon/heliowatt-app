@@ -1,25 +1,39 @@
 // ============================================================
 // AUTENTICACIÓN — Microsoft Login (MSAL) para acceder a OneDrive
 // ============================================================
-const msalConfig = {
-  auth: {
-    clientId: APP_CONFIG.clientId,
-    authority: "https://login.microsoftonline.com/consumers", // cuentas personales de Microsoft (Outlook/Hotmail/OneDrive personal)
-    redirectUri: APP_CONFIG.redirectUri
-  },
-  cache: {
-    cacheLocation: "localStorage",
-    storeAuthStateInCookie: false
-  }
-};
-
 const GRAPH_SCOPES = ["Files.ReadWrite", "User.Read", "offline_access"];
 
-const msalInstance = new msal.PublicClientApplication(msalConfig);
+let msalInstance = null;
 let activeAccount = null;
 
+function buildMsalInstance() {
+  if (typeof APP_CONFIG === "undefined") {
+    throw new Error(
+      "No se cargó js/config.js. Verifica en tu repositorio de GitHub que el archivo existe exactamente en la ruta 'js/config.js' (minúsculas) y que index.html está en la RAÍZ del repositorio, no dentro de una subcarpeta."
+    );
+  }
+  if (typeof msal === "undefined") {
+    throw new Error("No se pudo cargar la librería MSAL desde ninguno de los dos CDN configurados. Verifica tu conexión a internet, o si usas una red con bloqueadores/firewall restrictivo (VPN, red corporativa, DNS filtrado), prueba con datos móviles u otra red.");
+  }
+  if (!APP_CONFIG.clientId || APP_CONFIG.clientId.includes("PEGA-AQUI")) {
+    throw new Error("Falta configurar el Client ID en js/config.js (ver SETUP.md, Paso 3).");
+  }
+  const msalConfig = {
+    auth: {
+      clientId: APP_CONFIG.clientId,
+      authority: "https://login.microsoftonline.com/consumers",
+      redirectUri: APP_CONFIG.redirectUri
+    },
+    cache: {
+      cacheLocation: "localStorage",
+      storeAuthStateInCookie: false
+    }
+  };
+  return new msal.PublicClientApplication(msalConfig);
+}
+
 async function authInit() {
-  await msalInstance.initialize();
+  msalInstance = buildMsalInstance();
   const resp = await msalInstance.handleRedirectPromise();
   if (resp && resp.account) {
     activeAccount = resp.account;
@@ -31,11 +45,14 @@ async function authInit() {
 }
 
 function authLogin() {
-  msalInstance.loginRedirect({ scopes: GRAPH_SCOPES });
+  msalInstance.loginRedirect({ scopes: GRAPH_SCOPES }).catch(e => {
+    console.error(e);
+    alert("No se pudo iniciar sesión: " + e.message);
+  });
 }
 
 function authLogout() {
-  msalInstance.logoutRedirect();
+  msalInstance.logoutRedirect().catch(e => console.error(e));
 }
 
 async function getGraphToken() {
