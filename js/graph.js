@@ -50,9 +50,14 @@ async function ensureFolders() {
 
 async function readDb() {
   try {
-    const buf = await graphFetch(`/me/drive/root:/${encodeURIComponent(ROOT + "/db.json")}:/content`);
-    const text = new TextDecoder().decode(buf);
-    return JSON.parse(text);
+    const raw = await graphFetch(`/me/drive/root:/${encodeURIComponent(ROOT + "/db.json")}:/content`);
+    // graphFetch puede devolver un ArrayBuffer o, si OneDrive respondió con
+    // content-type application/json, un objeto ya parseado. Cubrimos ambos casos.
+    if (raw instanceof ArrayBuffer) {
+      const text = new TextDecoder().decode(raw);
+      return JSON.parse(text);
+    }
+    return raw;
   } catch (e) {
     if (e.status === 404) return null; // de verdad no existe todavía -> primera vez
     throw e; // cualquier otro error (permisos, red, token) NUNCA debe interpretarse como "no existe"
