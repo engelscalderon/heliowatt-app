@@ -41,6 +41,8 @@ nav#mainNav { display: flex; gap: 4px; flex-wrap: wrap; }
 .btn-primary:hover { background: #e2951f; }
 .btn-outline { background: transparent; border: 1px solid #8a8a8a; color: inherit; }
 .btn-outline:hover { border-color: var(--blue); color: var(--blue); }
+.btn-danger { background: transparent; border: 1px solid var(--red); color: var(--red); }
+.btn-danger:hover { background: var(--red); color: white; }
 .topbar .btn-outline { border-color: #666; color: #eee; }
 
 /* ---- Main ---- */
