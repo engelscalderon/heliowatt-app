@@ -45,7 +45,7 @@ async function authInit() {
 }
 
 function authLogin() {
-  msalInstance.loginRedirect({ scopes: GRAPH_SCOPES }).catch(e => {
+  msalInstance.loginRedirect({ scopes: GRAPH_SCOPES, prompt: "select_account" }).catch(e => {
     console.error(e);
     alert("No se pudo iniciar sesión: " + e.message);
   });
