@@ -1,0 +1,188 @@
+{
+  "version": 1,
+  "counters": {
+    "cotizacion": 1,
+    "factura": 1
+  },
+  "catalog": {
+    "clientes": [
+      {
+        "cliente": "Socartes Mejia",
+        "rnc": "001-2530665-6",
+        "direccion": "RESP. JOSE JIMENEZ / LAS PALMAS DE ALMA ROSA / STO. DGO, ESTE",
+        "atencion": "ELVIS MONTERO",
+        "idCliente": "250"
+      }
+    ],
+    "items": [
+      {
+        "descripcion": "Camara dom",
+        "precio": 1800
+      },
+      {
+        "descripcion": "Camra Buller",
+        "precio": 2100
+      },
+      {
+        "descripcion": "NVR",
+        "precio": 4500
+      },
+      {
+        "descripcion": "CAble 100% cobre",
+        "precio": 7500
+      },
+      {
+        "descripcion": "mano de obra",
+        "precio": 10500
+      }
+    ]
+  },
+  "ncfPool": [
+    {
+      "comprobante": "B0200000001",
+      "fechaVencimiento": null,
+      "usado": true
+    },
+    {
+      "comprobante": "B0200000002",
+      "fechaVencimiento": null,
+      "usado": true
+    },
+    {
+      "comprobante": "B0200000003",
+      "fechaVencimiento": null,
+      "usado": false
+    },
+    {
+      "comprobante": "B0200000004",
+      "fechaVencimiento": null,
+      "usado": false
+    },
+    {
+      "comprobante": "B0200000005",
+      "fechaVencimiento": null,
+      "usado": false
+    },
+    {
+      "comprobante": "B0200000006",
+      "fechaVencimiento": null,
+      "usado": false
+    },
+    {
+      "comprobante": "B0200000007",
+      "fechaVencimiento": null,
+      "usado": false
+    },
+    {
+      "comprobante": "B0200000008",
+      "fechaVencimiento": null,
+      "usado": false
+    },
+    {
+      "comprobante": "B0200000009",
+      "fechaVencimiento": null,
+      "usado": false
+    },
+    {
+      "comprobante": "B0200000010",
+      "fechaVencimiento": null,
+      "usado": false
+    }
+  ],
+  "cotizaciones": [
+    {
+      "id": "d1fc4070-1148-493e-aeb0-17fbf95c0ec2",
+      "numero": "001-08/2026",
+      "fecha": "04/08/2026",
+      "cliente": "Socartes Mejia",
+      "rnc": "001-2530665-6",
+      "direccion": "RESP. JOSE JIMENEZ / LAS PALMAS DE ALMA ROSA / STO. DGO, ESTE",
+      "atencion": "ELVIS MONTERO",
+      "idCliente": "250",
+      "trabajo": "INSTALACION CCTV",
+      "condiciones": "Pago 100% contra trabajo",
+      "vencimiento": "04/09/2026",
+      "comentarios": "",
+      "items": [
+        {
+          "cantidad": 1,
+          "descripcion": "Camara dom",
+          "precio": 1800
+        },
+        {
+          "cantidad": 10,
+          "descripcion": "Camra Buller",
+          "precio": 2100
+        },
+        {
+          "cantidad": 1,
+          "descripcion": "NVR",
+          "precio": 4500
+        },
+        {
+          "cantidad": 1,
+          "descripcion": "CAble 100% cobre",
+          "precio": 7500
+        },
+        {
+          "cantidad": 1,
+          "descripcion": "mano de obra",
+          "precio": 10500
+        }
+      ],
+      "subtotal": 45300,
+      "itebis": 8154,
+      "total": 53454,
+      "pdfPath": "HelioWatt Facturacion/Cotizaciones/COT-001-08-2026-Socartes_Mejia.pdf"
+    }
+  ],
+  "facturas": [
+    {
+      "id": "fb665ab9-82dd-47fa-9b91-eba0bf175369",
+      "numero": "001-08/2026",
+      "fecha": "04/08/2026",
+      "cliente": "Socartes Mejia",
+      "rnc": "001-2530665-6",
+      "direccion": "RESP. JOSE JIMENEZ / LAS PALMAS DE ALMA ROSA / STO. DGO, ESTE",
+      "atencion": "ELVIS MONTERO",
+      "idCliente": "250",
+      "trabajo": "INSTALACION CCTV",
+      "condiciones": "Pago 100% contra trabajo",
+      "vencimiento": "",
+      "comentarios": "",
+      "items": [
+        {
+          "cantidad": 1,
+          "descripcion": "Camara dom",
+          "precio": 1800
+        },
+        {
+          "cantidad": 10,
+          "descripcion": "Camra Buller",
+          "precio": 2100
+        },
+        {
+          "cantidad": 1,
+          "descripcion": "NVR",
+          "precio": 4500
+        },
+        {
+          "cantidad": 1,
+          "descripcion": "CAble 100% cobre",
+          "precio": 7500
+        },
+        {
+          "cantidad": 1,
+          "descripcion": "mano de obra",
+          "precio": 10500
+        }
+      ],
+      "subtotal": 45300,
+      "itebis": 8154,
+      "total": 53454,
+      "ncf": "B0200000002",
+      "cotizacionId": "d1fc4070-1148-493e-aeb0-17fbf95c0ec2",
+      "pdfPath": "HelioWatt Facturacion/Facturas/FACT-001-08-2026-Socartes_Mejia.pdf"
+    }
+  ]
+}
