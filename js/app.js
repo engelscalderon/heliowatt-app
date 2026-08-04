@@ -292,6 +292,34 @@ async function submitDoc(formId, tipo, form) {
   }
 }
 
+async function deleteDocument(tipo, id) {
+  const list = tipo === "factura" ? DB.facturas : DB.cotizaciones;
+  const doc = list.find(d => d.id === id);
+  if (!doc) return;
+
+  const confirmMsg = tipo === "factura"
+    ? `¿Eliminar la factura ${doc.numero} de ${doc.cliente}?\n\nEl comprobante fiscal ${doc.ncf} quedará disponible de nuevo para usarse en otra factura.`
+    : `¿Eliminar la cotización ${doc.numero} de ${doc.cliente}?`;
+  if (!confirm(confirmMsg)) return;
+
+  showLoading("Eliminando…");
+  try {
+    if (tipo === "factura" && doc.ncf) liberarNcf(doc.ncf);
+    if (doc.pdfPath) await deleteOneDriveFile(doc.pdfPath);
+    const idx = list.findIndex(d => d.id === id);
+    if (idx >= 0) list.splice(idx, 1);
+    await dbSave();
+    toast(`${tipo === "factura" ? "Factura" : "Cotización"} ${doc.numero} eliminada${tipo === "factura" ? " · NCF liberado" : ""}`);
+    renderHistorial();
+    renderDashboard();
+  } catch (e) {
+    console.error(e);
+    toast("Error al eliminar: " + e.message, true);
+  } finally {
+    hideLoading();
+  }
+}
+
 // ---------------- Dashboard / historial / NCF ----------------
 function docCardHtml(doc, tipo, editable) {
   return `
@@ -304,7 +332,10 @@ function docCardHtml(doc, tipo, editable) {
     </div>
     <div class="doc-card-right">
       <div class="doc-card-total">$${fmtMoney(doc.total)}</div>
-      ${editable ? `<button type="button" class="btn btn-outline btn-sm" onclick="editDocument('${tipo}','${doc.id}')">Editar</button>` : ""}
+      ${editable ? `
+        <button type="button" class="btn btn-outline btn-sm" onclick="editDocument('${tipo}','${doc.id}')">Editar</button>
+        <button type="button" class="btn btn-danger btn-sm" onclick="deleteDocument('${tipo}','${doc.id}')">Eliminar</button>
+      ` : ""}
     </div>
   </div>`;
 }

@@ -78,6 +78,11 @@ function marcarNcfUsado(comprobante) {
   if (item) item.usado = true;
 }
 
+function liberarNcf(comprobante) {
+  const item = DB.ncfPool.find(x => x.comprobante === comprobante);
+  if (item) item.usado = false;
+}
+
 function agregarRangoNcf(prefijo, inicio, cantidad) {
   for (let i = 0; i < cantidad; i++) {
     const num = String(inicio + i).padStart(10, "0");

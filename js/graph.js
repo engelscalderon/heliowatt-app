@@ -69,3 +69,11 @@ async function uploadPdf(subfolder, filename, pdfBlob) {
   });
   return path;
 }
+
+async function deleteOneDriveFile(path) {
+  try {
+    await graphFetch(`/me/drive/root:/${encodeURIComponent(path)}`, { method: "DELETE" });
+  } catch (e) {
+    console.warn("No se pudo borrar el archivo en OneDrive (puede que ya no exista):", e.message);
+  }
+}
