@@ -21,7 +21,7 @@ const APP_CONFIG = {
     rnc: "133-74986-6",
     telefonos: "809-245-6102 / 829-641-5278",
     email: "engelscalderon@gmail.com",
-    pago: "Cheques a nombre de Engels Calderón. Transferencias a Cuentas de ahorro: BHD -14690530011. BPD -826244774, BR-0102103646",
+    pago: "Cheques a Nombre de Engels Calderón. Transferencias a Cuentas de ahorro: BHD -14690530011. BPD -826244774, BR-0102103646",
     itebis: 0.18
   }
 };
