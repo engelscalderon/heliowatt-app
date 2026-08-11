@@ -18,7 +18,7 @@ function defaultDb() {
     // Comprobantes fiscales (NCF) disponibles para usar en facturas.
     // Precargado con el talonario inicial de HelioWatt (B0200000001-B0200000010).
     ncfPool: [
-      { comprobante: "B0200000001", fechaVencimiento: null, usado: true },
+      { comprobante: "B0200000001", fechaVencimiento: null, usado: false },
       { comprobante: "B0200000002", fechaVencimiento: null, usado: false },
       { comprobante: "B0200000003", fechaVencimiento: null, usado: false },
       { comprobante: "B0200000004", fechaVencimiento: null, usado: false },
