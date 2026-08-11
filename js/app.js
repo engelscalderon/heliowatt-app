@@ -4,6 +4,14 @@
 function $(sel, root = document) { return root.querySelector(sel); }
 function $all(sel, root = document) { return Array.from(root.querySelectorAll(sel)); }
 
+const CONDICIONES_PAGO_OPTIONS = [
+  "100% Contra Entrega",
+  "50% Contra Aprobación - 50% Contra Entrega",
+  "Crédito a 15 Días",
+  "Crédito a 30 Días",
+  "Crédito a 60 Días"
+];
+
 let editContext = null; // { tipo: 'cotizacion'|'factura', id } cuando se está editando un documento existente
 
 function renderDatalists() {
@@ -83,7 +91,11 @@ function renderForm(formId, tipo, prefillDoc) {
       <div class="field"><label>Atención (contacto)</label><input name="atencion"></div>
       <div class="field"><label>ID del cliente</label><input name="idCliente"></div>
       <div class="field"><label>Trabajo / servicio</label><input name="trabajo" required></div>
-      <div class="field"><label>Condiciones de pago</label><input name="condiciones" value="Pago 100% contra trabajo"></div>
+      <div class="field"><label>Condiciones de pago</label>
+        <select name="condiciones">
+          ${CONDICIONES_PAGO_OPTIONS.map(o => `<option value="${o}">${o}</option>`).join("")}
+        </select>
+      </div>
       <div class="field"><label>Fecha de vencimiento</label><input name="vencimiento" placeholder="ej. 26-ago.-26"></div>
     </div>
 
@@ -130,7 +142,10 @@ function renderForm(formId, tipo, prefillDoc) {
     form.atencion.value = prefillDoc.atencion || "";
     form.idCliente.value = prefillDoc.idCliente || "";
     form.trabajo.value = prefillDoc.trabajo || "";
-    form.condiciones.value = prefillDoc.condiciones || "";
+    if (prefillDoc.condiciones && !CONDICIONES_PAGO_OPTIONS.includes(prefillDoc.condiciones)) {
+      form.condiciones.insertAdjacentHTML("afterbegin", `<option value="${prefillDoc.condiciones}">${prefillDoc.condiciones}</option>`);
+    }
+    form.condiciones.value = prefillDoc.condiciones || CONDICIONES_PAGO_OPTIONS[0];
     form.vencimiento.value = prefillDoc.vencimiento || "";
     form.comentarios.value = prefillDoc.comentarios || "";
     itemsWrap.innerHTML = prefillDoc.items.map((it, i) => itemRowHtml(i)).join("");
@@ -193,7 +208,10 @@ function renderFacturaSelect() {
     form.atencion.value = cot.atencion || "";
     form.idCliente.value = cot.idCliente || "";
     form.trabajo.value = cot.trabajo;
-    form.condiciones.value = cot.condiciones;
+    if (cot.condiciones && !CONDICIONES_PAGO_OPTIONS.includes(cot.condiciones)) {
+      form.condiciones.insertAdjacentHTML("afterbegin", `<option value="${cot.condiciones}">${cot.condiciones}</option>`);
+    }
+    form.condiciones.value = cot.condiciones || CONDICIONES_PAGO_OPTIONS[0];
     form.comentarios.value = cot.comentarios || "";
     const wrap = $("#facForm-items");
     wrap.innerHTML = cot.items.map((it, i) => itemRowHtml(i)).join("");

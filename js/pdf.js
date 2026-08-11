@@ -87,7 +87,7 @@ function generateDocPdf(doc, tipo) {
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(9);
   pdf.text(doc.trabajo || "", margin + 90, y);
-  pdf.text(doc.condiciones || "Pago 100% Contra Entrega", pageW - margin - 210, y);
+  pdf.text(doc.condiciones || "100% Contra Entrega", pageW - margin - 210, y);
   pdf.text(doc.vencimiento || "", pageW - margin - 100, y);
   y += 18;
 
