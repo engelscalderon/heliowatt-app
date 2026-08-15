@@ -29,9 +29,11 @@
     <button data-view="cotizacion" class="nav-btn">Nueva cotización</button>
     <button data-view="factura" class="nav-btn">Nueva factura</button>
     <button data-view="historial" class="nav-btn">Historial</button>
-    <button data-view="ncf" class="nav-btn">Comprobantes</button>
+    <button data-view="administracion" id="navAdmin" class="nav-btn hidden">Administración</button>
   </nav>
   <div class="account-area">
+    <span id="roleLabel" class="pill role-pill hidden"></span>
+    <button id="switchRoleBtn" class="btn btn-outline btn-sm hidden">Cambiar sesión</button>
     <span id="userLabel" class="hidden"></span>
     <button id="loginBtn" class="btn btn-outline">Conectar OneDrive</button>
     <button id="logoutBtn" class="btn btn-outline hidden">Salir</button>
@@ -46,6 +48,19 @@
       <p>Conecta tu cuenta de Microsoft para leer y guardar cotizaciones, facturas y el consecutivo de comprobantes fiscales (NCF) directamente en tu carpeta de OneDrive.</p>
       <button id="loginBtnCenter" class="btn btn-primary">Conectar OneDrive</button>
       <p class="hint">Se creará (o usará) la carpeta <code>/HelioWatt Facturacion</code> en tu OneDrive.</p>
+    </div>
+  </section>
+
+  <section id="view-session" class="view hidden">
+    <div class="empty-state">
+      <img src="assets/logo.png" alt="HelioWatt" class="brand-mark big">
+      <h1>¿Con qué sesión quieres entrar?</h1>
+      <p>Elige el nivel de acceso para esta visita. Tendrás que elegir de nuevo la próxima vez que abras la app.</p>
+      <div class="session-choice">
+        <button id="btnRoleGeneral" class="btn btn-primary btn-lg">General</button>
+        <button id="btnRoleAdmin" class="btn btn-outline btn-lg">Administrativo</button>
+      </div>
+      <p class="hint">General: resumen, cotizaciones y facturas. Administrativo: acceso total, protegido por contraseña.</p>
     </div>
   </section>
 
@@ -82,11 +97,37 @@
     <div id="histFacturas" class="doc-list hidden"></div>
   </section>
 
-  <section id="view-ncf" class="view hidden">
-    <h1>Comprobantes fiscales (NCF)</h1>
-    <p class="hint">Estos son los números de comprobante disponibles para facturar. Se consumen en orden al emitir cada factura.</p>
-    <button id="addNcfBatchBtn" class="btn btn-outline">Agregar nuevo rango de comprobantes</button>
-    <div id="ncfTableWrap"></div>
+  <section id="view-administracion" class="view hidden">
+    <h1>Administración</h1>
+    <div class="tabs">
+      <button class="subtab-btn active" data-subtab="comprobantes">Comprobantes</button>
+      <button class="subtab-btn" data-subtab="gastos">Registro de gastos</button>
+      <button class="subtab-btn" data-subtab="ingresos">Ingresos</button>
+      <button class="subtab-btn" data-subtab="analisis">Análisis</button>
+    </div>
+
+    <div id="subtab-comprobantes" class="subtab-panel">
+      <p class="hint">Estos son los números de comprobante disponibles para facturar. Se consumen en orden, por tipo, al emitir cada factura.</p>
+      <button id="addNcfBatchBtn" class="btn btn-outline">Agregar nuevo rango de comprobantes</button>
+      <div id="ncfTableWrap"></div>
+    </div>
+
+    <div id="subtab-gastos" class="subtab-panel hidden">
+      <p class="hint">Registro de gastos y compras de la empresa, para efectos de control y análisis.</p>
+      <form id="gastoForm" class="doc-form"></form>
+      <h2>Gastos registrados</h2>
+      <div id="gastosTableWrap"></div>
+    </div>
+
+    <div id="subtab-ingresos" class="subtab-panel hidden">
+      <p class="hint">Ingresos generados automáticamente a partir de las facturas emitidas.</p>
+      <button id="exportIngresosBtn" class="btn btn-outline">Descargar archivo de ingresos (CSV)</button>
+      <div id="ingresosTableWrap"></div>
+    </div>
+
+    <div id="subtab-analisis" class="subtab-panel hidden">
+      <div id="analisisWrap"></div>
+    </div>
   </section>
 </main>
 
@@ -98,6 +139,8 @@
 <script src="js/graph.js"></script>
 <script src="js/db.js"></script>
 <script src="js/pdf.js"></script>
+<script src="js/roles.js"></script>
+<script src="js/admin.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>
