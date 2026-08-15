@@ -36,22 +36,6 @@ function generateDocPdf(doc, tipo) {
 
   y += 100;
 
-  // ---- Cintillo aviso RST (solo en facturas) ----
-  if (tipo === "factura") {
-    const noticeText = "Contribuyente Acogido al Régimen Simplificado de Tributación (RST), retener el 100% del ITBIS y remitir carta de retención adjunto a su comprobante de pago";
-    pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(8);
-    const noticeLines = pdf.splitTextToSize(noticeText, pageW - margin * 2 - 16);
-    const noticeH = noticeLines.length * 10 + 10;
-    pdf.setFillColor(255, 243, 205);
-    pdf.setDrawColor(180, 140, 20);
-    pdf.rect(margin, y, pageW - margin * 2, noticeH, "FD");
-    pdf.setTextColor(110, 80, 0);
-    pdf.text(noticeLines, pageW / 2, y + 13, { align: "center" });
-    pdf.setTextColor(0, 0, 0);
-    y += noticeH + 10;
-  }
-
   // ---- Cliente + datos documento ----
   const boxH = 70;
   pdf.setFontSize(9);
@@ -88,6 +72,28 @@ function generateDocPdf(doc, tipo) {
   pdf.text(String(doc.idCliente || ""), rx + 100, y + 36);
 
   y += boxH;
+
+  // ---- Cintillo aviso RST (solo en facturas), en una sola línea con colores tenues ----
+  if (tipo === "factura") {
+    const noticeText = "Contribuyente Acogido al Régimen Simplificado de Tributación (RST), retener el 100% del ITBIS y remitir carta de retención adjunto a su comprobante de pago";
+    const availW = pageW - margin * 2 - 16;
+    let fs = 8;
+    pdf.setFont("helvetica", "normal");
+    do {
+      pdf.setFontSize(fs);
+      fs -= 0.25;
+    } while (pdf.getTextWidth(noticeText) > availW && fs > 5);
+    const noticeH = 16;
+    pdf.setFillColor(246, 247, 248);
+    pdf.setDrawColor(210, 213, 218);
+    pdf.setLineWidth(0.75);
+    pdf.rect(margin, y, pageW - margin * 2, noticeH, "FD");
+    pdf.setTextColor(120, 125, 132);
+    pdf.text(noticeText, pageW / 2, y + noticeH / 2 + 3, { align: "center" });
+    pdf.setTextColor(0, 0, 0);
+    pdf.setLineWidth(1);
+    y += noticeH + 10;
+  }
 
   // ---- Barra vendedor/trabajo ----
   pdf.setFillColor(20, 20, 20);
