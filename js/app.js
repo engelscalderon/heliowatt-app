@@ -47,6 +47,7 @@ function toast(msg, isError) {
 }
 
 function showView(name) {
+  if (name === "administracion" && !isAdmin()) { toast("Acceso restringido al módulo Administrativo", true); name = "dashboard"; }
   $all(".view").forEach(v => v.classList.add("hidden"));
   $(`#view-${name}`).classList.remove("hidden");
   $all(".nav-btn").forEach(b => b.classList.toggle("active", b.dataset.view === name));
@@ -54,10 +55,11 @@ function showView(name) {
   if (name === "cotizacion") { editContext = null; renderForm("cotForm", "cotizacion"); }
   if (name === "factura") { editContext = null; renderFacturaSelect(); renderForm("facForm", "factura"); }
   if (name === "historial") renderHistorial();
-  if (name === "ncf") renderNcf();
+  if (name === "administracion") renderAdministracion();
 }
 
 function editDocument(tipo, id) {
+  if (tipo === "factura" && !isAdmin()) { toast("Solo el módulo Administrativo puede editar facturas", true); return; }
   const list = tipo === "factura" ? DB.facturas : DB.cotizaciones;
   const doc = list.find(d => d.id === id);
   if (!doc) return;
@@ -322,6 +324,7 @@ async function submitDoc(formId, tipo, form) {
 }
 
 async function deleteDocument(tipo, id) {
+  if (!isAdmin()) { toast("Solo el módulo Administrativo puede eliminar documentos", true); return; }
   const list = tipo === "factura" ? DB.facturas : DB.cotizaciones;
   const doc = list.find(d => d.id === id);
   if (!doc) return;
@@ -350,7 +353,7 @@ async function deleteDocument(tipo, id) {
 }
 
 // ---------------- Dashboard / historial / NCF ----------------
-function docCardHtml(doc, tipo, editable) {
+function docCardHtml(doc, tipo, allowEdit, allowDelete) {
   return `
   <div class="doc-card">
     <div class="doc-card-main">
@@ -361,10 +364,8 @@ function docCardHtml(doc, tipo, editable) {
     </div>
     <div class="doc-card-right">
       <div class="doc-card-total">$${fmtMoney(doc.total)}</div>
-      ${editable ? `
-        <button type="button" class="btn btn-outline btn-sm" onclick="editDocument('${tipo}','${doc.id}')">Editar</button>
-        <button type="button" class="btn btn-danger btn-sm" onclick="deleteDocument('${tipo}','${doc.id}')">Eliminar</button>
-      ` : ""}
+      ${allowEdit ? `<button type="button" class="btn btn-outline btn-sm" onclick="editDocument('${tipo}','${doc.id}')">Editar</button>` : ""}
+      ${allowDelete ? `<button type="button" class="btn btn-danger btn-sm" onclick="deleteDocument('${tipo}','${doc.id}')">Eliminar</button>` : ""}
     </div>
   </div>`;
 }
@@ -383,8 +384,9 @@ function renderDashboard() {
 }
 
 function renderHistorial() {
-  $("#histCotizaciones").innerHTML = DB.cotizaciones.slice().reverse().map(d => docCardHtml(d, "cotizacion", true)).join("") || `<p class="hint">Sin cotizaciones.</p>`;
-  $("#histFacturas").innerHTML = DB.facturas.slice().reverse().map(d => docCardHtml(d, "factura", true)).join("") || `<p class="hint">Sin facturas.</p>`;
+  const admin = isAdmin();
+  $("#histCotizaciones").innerHTML = DB.cotizaciones.slice().reverse().map(d => docCardHtml(d, "cotizacion", true, admin)).join("") || `<p class="hint">Sin cotizaciones.</p>`;
+  $("#histFacturas").innerHTML = DB.facturas.slice().reverse().map(d => docCardHtml(d, "factura", admin, admin)).join("") || `<p class="hint">Sin facturas.</p>`;
   $all(".tab-btn").forEach(b => b.onclick = () => {
     $all(".tab-btn").forEach(x => x.classList.remove("active"));
     b.classList.add("active");
@@ -427,12 +429,51 @@ function renderNcf() {
   };
 }
 
+// ---------------- Sesión (General / Administrativo) ----------------
+function applyRoleUI() {
+  const admin = isAdmin();
+  $("#mainNav").classList.remove("hidden");
+  $("#navAdmin").classList.toggle("hidden", !admin);
+  $("#roleLabel").textContent = admin ? "Administrativo" : "General";
+  $("#roleLabel").classList.remove("hidden");
+  $("#switchRoleBtn").classList.remove("hidden");
+  $("#switchRoleBtn").onclick = () => {
+    roleClear();
+    $("#roleLabel").classList.add("hidden");
+    $("#switchRoleBtn").classList.add("hidden");
+    $("#navAdmin").classList.add("hidden");
+    $("#mainNav").classList.add("hidden");
+    showView("session");
+  };
+}
+
+function wireSessionButtons() {
+  $("#btnRoleGeneral").onclick = () => {
+    roleSet("general");
+    applyRoleUI();
+    showView("dashboard");
+  };
+  $("#btnRoleAdmin").onclick = async () => {
+    const pwd = prompt("Contraseña del módulo Administrativo:");
+    if (pwd === null) return;
+    const hash = await sha256Hex(pwd);
+    if (hash !== ADMIN_PASSWORD_HASH) {
+      alert("Contraseña incorrecta.");
+      return;
+    }
+    roleSet("admin");
+    applyRoleUI();
+    showView("dashboard");
+  };
+}
+
 // ---------------- Arranque ----------------
 async function boot() {
   $("#loginBtn").onclick = authLogin;
   $("#loginBtnCenter").onclick = authLogin;
-  $("#logoutBtn").onclick = authLogout;
+  $("#logoutBtn").onclick = () => { roleClear(); authLogout(); };
   $all(".nav-btn").forEach(b => b.onclick = () => showView(b.dataset.view));
+  wireSessionButtons();
 
   try {
     await authInit();
@@ -448,7 +489,6 @@ async function boot() {
     $("#userLabel").classList.remove("hidden");
     $("#loginBtn").classList.add("hidden");
     $("#logoutBtn").classList.remove("hidden");
-    $("#mainNav").classList.remove("hidden");
     $("#view-login").classList.add("hidden");
 
     showLoading("Conectando con OneDrive…");
@@ -456,7 +496,12 @@ async function boot() {
       await ensureFolders();
       await dbLoad();
       renderDatalists();
-      showView("dashboard");
+      if (roleGet()) {
+        applyRoleUI();
+        showView("dashboard");
+      } else {
+        showView("session");
+      }
     } catch (e) {
       console.error(e);
       toast("No se pudo conectar con OneDrive: " + e.message, true);

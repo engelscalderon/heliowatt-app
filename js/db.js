@@ -25,10 +25,11 @@ function generarRango(prefijo, inicio, cantidad, primeroUsado) {
 
 function defaultDb() {
   return {
-    version: 2,
+    version: 3,
     counters: {
       cotizacion: 0,
-      factura: 0
+      factura: 0,
+      gasto: 0
     },
     // Catálogo de clientes e items usados anteriormente, para autollenado (como una mini base de datos)
     catalog: {
@@ -44,7 +45,9 @@ function defaultDb() {
       ...generarRango("B04", 1, 10, false)
     ],
     cotizaciones: [], // {id, numero, fecha, cliente, rnc, atencion, direccion, trabajo, condiciones, vencimiento, items[], comentarios, subtotal, itebis, total, pdfPath}
-    facturas: []      // igual + {ncf, ncfTipo, cotizacionId}
+    facturas: [],     // igual + {ncf, ncfTipo, cotizacionId}
+    // Registro de gastos y compras de la empresa
+    gastos: [] // {id, item, fecha, rncCedula, razonSocial, concepto, ncf, categoria, valorBruto, itbis, valorNeto}
   };
 }
 
@@ -71,6 +74,8 @@ async function dbLoad() {
       migrated = true;
     }
   });
+  if (!DB.gastos) { DB.gastos = []; migrated = true; }
+  if (!DB.counters.gasto && DB.counters.gasto !== 0) { DB.counters.gasto = DB.gastos.length; migrated = true; }
   if (migrated) await dbSave();
 
   return DB;
@@ -146,4 +151,40 @@ function upsertCatalog(doc) {
     if (idx >= 0) DB.catalog.items[idx] = entry;
     else DB.catalog.items.push(entry);
   });
+}
+
+// ---------------- Gastos ----------------
+const GASTO_CATEGORIAS = ["Compras", "Pago de Personal", "Gastos Generales"];
+
+function addGasto(data) {
+  DB.counters.gasto += 1;
+  const gasto = {
+    id: crypto.randomUUID(),
+    item: DB.counters.gasto,
+    fecha: data.fecha,
+    rncCedula: data.rncCedula || "",
+    razonSocial: data.razonSocial || "",
+    concepto: data.concepto || "",
+    ncf: data.ncf || "",
+    categoria: data.categoria || GASTO_CATEGORIAS[0],
+    valorBruto: data.valorBruto || 0,
+    itbis: data.itbis || 0,
+    valorNeto: (data.valorBruto || 0) + (data.itbis || 0)
+  };
+  DB.gastos.push(gasto);
+  return gasto;
+}
+
+function deleteGasto(id) {
+  const idx = DB.gastos.findIndex(g => g.id === id);
+  if (idx >= 0) DB.gastos.splice(idx, 1);
+}
+
+function gastoTotals(gastos) {
+  return gastos.reduce((acc, g) => {
+    acc.valorBruto += g.valorBruto || 0;
+    acc.itbis += g.itbis || 0;
+    acc.valorNeto += g.valorNeto || 0;
+    return acc;
+  }, { valorBruto: 0, itbis: 0, valorNeto: 0 });
 }
