@@ -36,6 +36,22 @@ function generateDocPdf(doc, tipo) {
 
   y += 100;
 
+  // ---- Cintillo aviso RST (solo en facturas) ----
+  if (tipo === "factura") {
+    const noticeText = "Contribuyente Acogido al Régimen Simplificado de Tributación (RST), retener el 100% del ITBIS y remitir carta de retención adjunto a su comprobante de pago";
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(8);
+    const noticeLines = pdf.splitTextToSize(noticeText, pageW - margin * 2 - 16);
+    const noticeH = noticeLines.length * 10 + 10;
+    pdf.setFillColor(255, 243, 205);
+    pdf.setDrawColor(180, 140, 20);
+    pdf.rect(margin, y, pageW - margin * 2, noticeH, "FD");
+    pdf.setTextColor(110, 80, 0);
+    pdf.text(noticeLines, pageW / 2, y + 13, { align: "center" });
+    pdf.setTextColor(0, 0, 0);
+    y += noticeH + 10;
+  }
+
   // ---- Cliente + datos documento ----
   const boxH = 70;
   pdf.setFontSize(9);
