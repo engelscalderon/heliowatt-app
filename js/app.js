@@ -202,7 +202,7 @@ function updateTotalsPreview(formId) {
   const items = readItems(formId);
   const t = calcTotals(items);
   $(`#${formId}-totals`).textContent =
-    `Subtotal: $${fmtMoney(t.subtotal)} · ITBIS 18%: $${fmtMoney(t.itebis)} · Total: $${fmtMoney(t.total)}`;
+    `Subtotal: $${fmtMoney(t.subtotal)} · ITBIS (18%): $${fmtMoney(t.itebis)} · Total: $${fmtMoney(t.total)}`;
 }
 
 function renderFacturaSelect() {

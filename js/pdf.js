@@ -138,7 +138,7 @@ function generateDocPdf(doc, tipo) {
   pdf.text(`$ ${fmtMoney(doc.subtotal)}`, totalsX + totalsW - 4, y + 11, { align: "right" });
 
   pdf.rect(totalsX, y + rowH, totalsW, rowH);
-  pdf.text("ITBIS 18%", totalsX + 4, y + rowH + 11);
+  pdf.text("ITBIS (18%)", totalsX + 4, y + rowH + 11);
   pdf.text(`$ ${fmtMoney(doc.itebis)}`, totalsX + totalsW - 4, y + rowH + 11, { align: "right" });
 
   pdf.setFillColor(235, 235, 235);

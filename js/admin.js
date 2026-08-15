@@ -81,7 +81,24 @@ function renderGastosPanel() {
     }
   };
 
+  $("#exportGastosBtn").onclick = () => exportGastosCsv(DB.gastos);
+
   renderGastosTable();
+}
+
+function exportGastosCsv(gastos) {
+  const header = ["Item", "Fecha", "RNC/Cédula", "Razón Social/Nombre", "Concepto", "NCF", "Categoría", "Valor Bruto", "ITBIS", "Valor Neto"];
+  const lines = [header.join(",")];
+  gastos.slice().sort((a, b) => a.item - b.item).forEach(g => {
+    lines.push([g.item, g.fecha, g.rncCedula, g.razonSocial, g.concepto, g.ncf, g.categoria, g.valorBruto.toFixed(2), g.itbis.toFixed(2), g.valorNeto.toFixed(2)].map(csvEscape).join(","));
+  });
+  const blob = new Blob(["\uFEFF" + lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `Gastos_HelioWatt_${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 function renderGastosTable() {
@@ -250,14 +267,53 @@ function renderAnalisisPanel() {
     <h2>Ingresos vs. Gastos por mes</h2>
     <div id="chartWrap">${months.length ? buildBarChartSvg(months, ingresosPorMes, gastosPorMes) : `<p class="hint">Aún no hay suficientes datos con fecha para graficar.</p>`}</div>
 
-    <h2>Proyección de impuestos — Régimen Simplificado de Tributación (RST)</h2>
+    <h2>Gastos por categoría</h2>
+    <div id="pieChartWrap">${totalGastos > 0 ? buildPieChartSvg(porCategoria) : `<p class="hint">Aún no hay gastos registrados para graficar.</p>`}</div>
+
+    <h2>Proyección de impuestos — Régimen Simplificado de Tributación (RST por Ingresos)</h2>
     <div class="tax-box">
-      <p>Para una persona jurídica acogida al <strong>RST por compras</strong>, la cuota se estima con una tasa fija del <strong>7% sobre los ingresos brutos declarados</strong>.</p>
+      <p>Para una persona jurídica acogida al <strong>RST por Ingresos</strong>, la cuota se estima con una tasa fija del <strong>7% sobre los ingresos brutos declarados</strong>.</p>
       <div class="tax-line"><span>Ingresos brutos declarados</span><strong>$${fmtMoney(ingresosBrutos)}</strong></div>
       <div class="tax-line total"><span>Proyección de impuesto (7%)</span><strong>$${fmtMoney(proyeccionRST)}</strong></div>
       <p class="hint">Esto es una estimación orientativa, no una declaración oficial. Verifica siempre la tasa vigente y las condiciones de tu régimen con tu contador o la DGII antes de pagar.</p>
     </div>
   `;
+}
+
+function buildPieChartSvg(porCategoria) {
+  const colors = { "Compras": "#1c6ea8", "Pago de Personal": "#f4a52c", "Gastos Generales": "#c0392b" };
+  const total = Object.values(porCategoria).reduce((a, b) => a + b, 0) || 1;
+  const cx = 120, cy = 120, r = 100;
+  let angleStart = -Math.PI / 2;
+  let slices = "";
+  let legend = "";
+
+  Object.entries(porCategoria).forEach(([cat, val]) => {
+    if (!val) { legend += legendRow(cat, val, total, colors[cat]); return; }
+    const angle = (val / total) * Math.PI * 2;
+    const angleEnd = angleStart + angle;
+    const x1 = cx + r * Math.cos(angleStart), y1 = cy + r * Math.sin(angleStart);
+    const x2 = cx + r * Math.cos(angleEnd), y2 = cy + r * Math.sin(angleEnd);
+    const largeArc = angle > Math.PI ? 1 : 0;
+    const isFullCircle = Math.abs(val - total) < 0.001;
+    const path = isFullCircle
+      ? `M ${cx - r} ${cy} A ${r} ${r} 0 1 1 ${cx + r} ${cy} A ${r} ${r} 0 1 1 ${cx - r} ${cy} Z`
+      : `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2} Z`;
+    slices += `<path d="${path}" fill="${colors[cat] || "#888"}" stroke="white" stroke-width="2"></path>`;
+    angleStart = angleEnd;
+    legend += legendRow(cat, val, total, colors[cat]);
+  });
+
+  return `
+  <div class="pie-wrap">
+    <svg viewBox="0 0 240 240" width="240" height="240">${slices}</svg>
+    <div class="pie-legend">${legend}</div>
+  </div>`;
+}
+
+function legendRow(cat, val, total, color) {
+  const pct = ((val / total) * 100).toFixed(1);
+  return `<div class="legend-item"><span class="dot" style="background:${color || "#888"}"></span> ${cat}: $${fmtMoney(val)} (${pct}%)</div>`;
 }
 
 function buildBarChartSvg(months, ingresosPorMes, gastosPorMes) {
