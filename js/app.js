@@ -90,6 +90,12 @@ function renderForm(formId, tipo, prefillDoc) {
       <div class="field"><label>Dirección del cliente</label><input name="direccion"></div>
       <div class="field"><label>Atención (contacto)</label><input name="atencion"></div>
       <div class="field"><label>ID del cliente</label><input name="idCliente"></div>
+      ${tipo === "factura" ? `
+      <div class="field"><label>Comprobante</label>
+        <select name="comprobanteTipo" ${isEdit ? "disabled" : ""}>
+          ${NCF_TIPOS.map(t => `<option value="${t.prefijo}" ${t.prefijo === "B02" ? "selected" : ""}>${t.label} (${t.prefijo}xxxxxxxx)</option>`).join("")}
+        </select>
+      </div>` : ""}
       <div class="field"><label>Trabajo / servicio</label><input name="trabajo" required></div>
       <div class="field"><label>Condiciones de pago</label>
         <select name="condiciones">
@@ -136,6 +142,9 @@ function renderForm(formId, tipo, prefillDoc) {
   wireItemRow(itemsWrap.firstElementChild, formId);
 
   if (isEdit) {
+    if (tipo === "factura" && form.comprobanteTipo) {
+      form.comprobanteTipo.value = prefillDoc.ncfTipo || (prefillDoc.ncf ? prefillDoc.ncf.substring(0, 3) : "B02");
+    }
     form.cliente.value = prefillDoc.cliente || "";
     form.rnc.value = prefillDoc.rnc || "";
     form.direccion.value = prefillDoc.direccion || "";
@@ -236,8 +245,9 @@ async function submitDoc(formId, tipo, form) {
 
   let ncfItem = null;
   if (tipo === "factura" && !isEditing) {
-    ncfItem = nextAvailableNcf();
-    if (!ncfItem) { toast("No quedan comprobantes NCF disponibles. Agrega un nuevo rango en 'Comprobantes'.", true); return; }
+    const comprobanteTipo = form.comprobanteTipo ? form.comprobanteTipo.value : "B02";
+    ncfItem = nextAvailableNcf(comprobanteTipo);
+    if (!ncfItem) { toast(`No quedan comprobantes de tipo ${ncfTipoLabel(comprobanteTipo)} (${comprobanteTipo}) disponibles. Agrega un nuevo rango en 'Comprobantes'.`, true); return; }
   }
 
   const numero = isEditing ? existing.numero : nextDocNumber(tipo);
@@ -260,6 +270,7 @@ async function submitDoc(formId, tipo, form) {
   };
   if (tipo === "factura") {
     doc.ncf = isEditing ? existing.ncf : ncfItem.comprobante;
+    doc.ncfTipo = isEditing ? existing.ncfTipo : ncfItem.tipo;
     if (isEditing && existing.cotizacionId) doc.cotizacionId = existing.cotizacionId;
     const sel = $("#facturaFromCot") ? $("#facturaFromCot").value : "";
     if (!isEditing && sel) doc.cotizacionId = sel;
@@ -346,7 +357,7 @@ function docCardHtml(doc, tipo, editable) {
       <strong>${doc.numero}</strong>
       <span>${doc.cliente}</span>
       <span class="muted">${doc.fecha}</span>
-      ${tipo === "factura" ? `<span class="pill">NCF ${doc.ncf}</span>` : ""}
+      ${tipo === "factura" ? `<span class="pill">${ncfTipoLabel(doc.ncfTipo || doc.ncf.substring(0, 3))} · ${doc.ncf}</span>` : ""}
     </div>
     <div class="doc-card-right">
       <div class="doc-card-total">$${fmtMoney(doc.total)}</div>
@@ -383,24 +394,36 @@ function renderHistorial() {
 }
 
 function renderNcf() {
-  const rows = DB.ncfPool.map(x => `
-    <tr class="${x.usado ? "used" : ""}">
-      <td>${x.comprobante}</td>
-      <td>${x.usado ? "Usado" : "Disponible"}</td>
-    </tr>`).join("");
-  $("#ncfTableWrap").innerHTML = `<table class="ncf-table"><thead><tr><th>Comprobante</th><th>Estado</th></tr></thead><tbody>${rows}</tbody></table>`;
+  const groups = NCF_TIPOS.map(t => {
+    const items = DB.ncfPool.filter(x => x.tipo === t.prefijo);
+    const disponibles = items.filter(x => !x.usado).length;
+    const rows = items.map(x => `
+      <tr class="${x.usado ? "used" : ""}">
+        <td>${x.comprobante}</td>
+        <td>${x.usado ? "Usado" : "Disponible"}</td>
+      </tr>`).join("");
+    return `
+      <h3>${t.label} <span class="hint">(${t.prefijo}xxxxxxxx · ${disponibles} disponible${disponibles === 1 ? "" : "s"})</span></h3>
+      <table class="ncf-table"><thead><tr><th>Comprobante</th><th>Estado</th></tr></thead><tbody>${rows}</tbody></table>
+    `;
+  }).join("");
+  $("#ncfTableWrap").innerHTML = groups;
+
   $("#addNcfBatchBtn").onclick = async () => {
-    const prefijo = prompt("Prefijo (ej. B02)", "B02");
-    if (!prefijo) return;
-    const inicio = parseInt(prompt("Número inicial (ej. 11 para B0200000011)", "11"), 10);
+    const opciones = NCF_TIPOS.map((t, i) => `${i + 1}. ${t.label} (${t.prefijo})`).join("\n");
+    const sel = prompt(`¿Qué tipo de comprobante quieres agregar?\n${opciones}`, "2");
+    const idx = parseInt(sel, 10) - 1;
+    const tipoElegido = NCF_TIPOS[idx];
+    if (!tipoElegido) return;
+    const inicio = parseInt(prompt(`Número inicial (ej. 11 para ${tipoElegido.prefijo}0000000011)`, "11"), 10);
     const cantidad = parseInt(prompt("Cantidad de comprobantes a agregar", "10"), 10);
     if (!inicio || !cantidad) return;
-    agregarRangoNcf(prefijo, inicio, cantidad);
+    agregarRangoNcf(tipoElegido.prefijo, inicio, cantidad);
     showLoading("Guardando…");
     await dbSave();
     hideLoading();
     renderNcf();
-    toast("Rango de comprobantes agregado");
+    toast(`Rango de comprobantes ${tipoElegido.label} agregado`);
   };
 }
 

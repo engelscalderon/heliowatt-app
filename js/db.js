@@ -3,9 +3,29 @@
 // El "archivo" db.json vive en OneDrive y hace de base de datos.
 // ============================================================
 
+const NCF_TIPOS = [
+  { prefijo: "B01", label: "Valor Fiscal" },
+  { prefijo: "B02", label: "Consumo" },
+  { prefijo: "B04", label: "Nota de Crédito" }
+];
+
+function ncfTipoLabel(prefijo) {
+  const t = NCF_TIPOS.find(t => t.prefijo === prefijo);
+  return t ? t.label : prefijo;
+}
+
+function generarRango(prefijo, inicio, cantidad, primeroUsado) {
+  const out = [];
+  for (let i = 0; i < cantidad; i++) {
+    const num = String(inicio + i).padStart(10, "0");
+    out.push({ comprobante: prefijo + num, tipo: prefijo, fechaVencimiento: null, usado: !!(primeroUsado && i === 0) });
+  }
+  return out;
+}
+
 function defaultDb() {
   return {
-    version: 1,
+    version: 2,
     counters: {
       cotizacion: 0,
       factura: 0
@@ -15,22 +35,16 @@ function defaultDb() {
       clientes: [], // {cliente, rnc, direccion, atencion, idCliente}
       items: []     // {descripcion, precio}
     },
-    // Comprobantes fiscales (NCF) disponibles para usar en facturas.
-    // Precargado con el talonario inicial de HelioWatt (B0200000001-B0200000010).
+    // Comprobantes fiscales (NCF) disponibles para usar en facturas, por tipo.
+    // Precargado con un talonario inicial de 10 comprobantes por cada tipo
+    // (B02 replica el talonario original de HelioWatt, con el primero ya usado).
     ncfPool: [
-      { comprobante: "B0200000001", fechaVencimiento: null, usado: false },
-      { comprobante: "B0200000002", fechaVencimiento: null, usado: false },
-      { comprobante: "B0200000003", fechaVencimiento: null, usado: false },
-      { comprobante: "B0200000004", fechaVencimiento: null, usado: false },
-      { comprobante: "B0200000005", fechaVencimiento: null, usado: false },
-      { comprobante: "B0200000006", fechaVencimiento: null, usado: false },
-      { comprobante: "B0200000007", fechaVencimiento: null, usado: false },
-      { comprobante: "B0200000008", fechaVencimiento: null, usado: false },
-      { comprobante: "B0200000009", fechaVencimiento: null, usado: false },
-      { comprobante: "B0200000010", fechaVencimiento: null, usado: false }
+      ...generarRango("B01", 1, 10, false),
+      ...generarRango("B02", 1, 10, true),
+      ...generarRango("B04", 1, 10, false)
     ],
     cotizaciones: [], // {id, numero, fecha, cliente, rnc, atencion, direccion, trabajo, condiciones, vencimiento, items[], comentarios, subtotal, itebis, total, pdfPath}
-    facturas: []      // igual + {ncf, cotizacionId}
+    facturas: []      // igual + {ncf, ncfTipo, cotizacionId}
   };
 }
 
@@ -43,6 +57,22 @@ async function dbLoad() {
     await writeDb(DB);
   }
   if (!DB.catalog) DB.catalog = { clientes: [], items: [] };
+
+  // Migración: bases de datos creadas antes de tener tipos de comprobante (B01/B02/B04)
+  let migrated = false;
+  if (!DB.ncfPool) DB.ncfPool = [];
+  DB.ncfPool.forEach(item => {
+    if (!item.tipo) { item.tipo = item.comprobante.substring(0, 3); migrated = true; }
+  });
+  NCF_TIPOS.forEach(t => {
+    const yaExiste = DB.ncfPool.some(x => x.tipo === t.prefijo);
+    if (!yaExiste) {
+      DB.ncfPool.push(...generarRango(t.prefijo, 1, 10, false));
+      migrated = true;
+    }
+  });
+  if (migrated) await dbSave();
+
   return DB;
 }
 
@@ -67,8 +97,8 @@ function nextDocNumber(tipo) {
   return `${String(n).padStart(3, "0")}-${mm}/${yyyy}`;
 }
 
-function nextAvailableNcf() {
-  const item = DB.ncfPool.find(x => !x.usado);
+function nextAvailableNcf(tipo) {
+  const item = DB.ncfPool.find(x => x.tipo === tipo && !x.usado);
   if (!item) return null;
   return item;
 }
@@ -83,11 +113,8 @@ function liberarNcf(comprobante) {
   if (item) item.usado = false;
 }
 
-function agregarRangoNcf(prefijo, inicio, cantidad) {
-  for (let i = 0; i < cantidad; i++) {
-    const num = String(inicio + i).padStart(10, "0");
-    DB.ncfPool.push({ comprobante: prefijo + num, fechaVencimiento: null, usado: false });
-  }
+function agregarRangoNcf(tipo, inicio, cantidad) {
+  DB.ncfPool.push(...generarRango(tipo, inicio, cantidad, false));
 }
 
 function calcTotals(items) {
