@@ -78,7 +78,7 @@ function generateDocPdf(doc, tipo) {
     const noticeText = "Contribuyente Acogido al Régimen Simplificado de Tributación (RST), retener el 100% del ITBIS y remitir carta de retención adjunto a su comprobante de pago.";
     const availW = pageW - margin * 2 - 16;
     let fs = 8;
-    pdf.setFont("helvetica", "normal");
+    pdf.setFont("helvetica", "bold");
     do {
       pdf.setFontSize(fs);
       fs -= 0.25;
