@@ -117,7 +117,9 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--blue); bord
 .tax-line.total { border-bottom: none; border-top: 2px solid var(--ink); margin-top: 4px; padding-top: 10px; font-size: 1.05rem; }
 .chart-legend { display: flex; gap: 18px; margin-top: 8px; font-size: 0.82rem; }
 .legend-item { display: flex; align-items: center; gap: 6px; }
-.legend-item .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.legend-item .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+.pie-wrap { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; background: white; border: 1px solid var(--line); border-radius: 12px; padding: 16px 20px; }
+.pie-legend { display: flex; flex-direction: column; gap: 8px; font-size: 0.85rem; }
 
 /* ---- NCF table ---- */
 .ncf-table { width: 100%; border-collapse: collapse; background: white; border-radius: 10px; overflow: hidden; margin-top: 12px; }
