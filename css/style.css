@@ -22,8 +22,8 @@ body { margin: 0; background: var(--paper); color: var(--ink); }
   position: sticky; top: 0; z-index: 10;
 }
 .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 1.1rem; }
-.brand-mark { width: 44px; height: 44px; object-fit: contain; border-radius: 6px; }
-.brand-mark.big { width: 130px; height: 130px; border-radius: 16px; margin-bottom: 6px; }
+.brand-mark { width: 56px; height: 56px; object-fit: contain; border-radius: 8px; }
+.brand-mark.big { width: 150px; height: 150px; border-radius: 18px; margin-bottom: 6px; }
 
 nav#mainNav { display: flex; gap: 4px; flex-wrap: wrap; }
 .nav-btn {
