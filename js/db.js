@@ -122,11 +122,14 @@ function agregarRangoNcf(tipo, inicio, cantidad) {
   DB.ncfPool.push(...generarRango(tipo, inicio, cantidad, false));
 }
 
-function calcTotals(items) {
+const DEFAULT_ITBIS_PCT = APP_CONFIG.company.itebis * 100; // 18 por defecto, editable por documento
+
+function calcTotals(items, itbisPct) {
+  const pct = (itbisPct === undefined || itbisPct === null || itbisPct === "") ? DEFAULT_ITBIS_PCT : parseFloat(itbisPct);
   const subtotal = items.reduce((s, it) => s + it.cantidad * it.precio, 0);
-  const itebis = Math.round(subtotal * APP_CONFIG.company.itebis * 100) / 100;
+  const itebis = Math.round(subtotal * (pct / 100) * 100) / 100;
   const total = Math.round((subtotal + itebis) * 100) / 100;
-  return { subtotal, itebis, total };
+  return { subtotal, itebis, total, itbisPct: pct };
 }
 
 function upsertCatalog(doc) {
@@ -158,6 +161,10 @@ const GASTO_CATEGORIAS = ["Compras", "Pago de Personal", "Gastos Generales"];
 
 function addGasto(data) {
   DB.counters.gasto += 1;
+  const valorBruto = data.valorBruto || 0;
+  const itbis = data.itbis || 0;
+  const otrosImpuestosPct = data.otrosImpuestosPct || 0;
+  const otrosImpuestosValor = Math.round(valorBruto * (otrosImpuestosPct / 100) * 100) / 100;
   const gasto = {
     id: crypto.randomUUID(),
     item: DB.counters.gasto,
@@ -167,9 +174,12 @@ function addGasto(data) {
     concepto: data.concepto || "",
     ncf: data.ncf || "",
     categoria: data.categoria || GASTO_CATEGORIAS[0],
-    valorBruto: data.valorBruto || 0,
-    itbis: data.itbis || 0,
-    valorNeto: (data.valorBruto || 0) + (data.itbis || 0)
+    valorBruto,
+    itbis,
+    otrosImpuestosNombre: data.otrosImpuestosNombre || "",
+    otrosImpuestosPct,
+    otrosImpuestosValor,
+    valorNeto: valorBruto + itbis + otrosImpuestosValor
   };
   DB.gastos.push(gasto);
   return gasto;
@@ -184,7 +194,8 @@ function gastoTotals(gastos) {
   return gastos.reduce((acc, g) => {
     acc.valorBruto += g.valorBruto || 0;
     acc.itbis += g.itbis || 0;
+    acc.otrosImpuestosValor += g.otrosImpuestosValor || 0;
     acc.valorNeto += g.valorNeto || 0;
     return acc;
-  }, { valorBruto: 0, itbis: 0, valorNeto: 0 });
+  }, { valorBruto: 0, itbis: 0, otrosImpuestosValor: 0, valorNeto: 0 });
 }

@@ -111,9 +111,15 @@ function renderForm(formId, tipo, prefillDoc) {
     <div id="${formId}-items">${itemRowHtml(0)}</div>
     <button type="button" class="btn btn-outline" id="${formId}-addItem">+ Agregar renglón</button>
 
-    <div class="field">
-      <label>Comentarios</label>
-      <textarea name="comentarios" rows="2"></textarea>
+    <div class="field-grid">
+      <div class="field">
+        <label>Comentarios</label>
+        <textarea name="comentarios" rows="2"></textarea>
+      </div>
+      <div class="field">
+        <label>% ITBIS</label>
+        <input type="number" name="itbisPct" step="0.01" min="0" value="${DEFAULT_ITBIS_PCT}">
+      </div>
     </div>
 
     <div class="totals-preview" id="${formId}-totals">Subtotal: $0.00 · ITBIS: $0.00 · Total: $0.00</div>
@@ -142,6 +148,7 @@ function renderForm(formId, tipo, prefillDoc) {
     wireItemRow(itemsWrap.lastElementChild, formId);
   };
   wireItemRow(itemsWrap.firstElementChild, formId);
+  form.itbisPct.addEventListener("input", () => updateTotalsPreview(formId));
 
   if (isEdit) {
     if (tipo === "factura" && form.comprobanteTipo) {
@@ -159,6 +166,7 @@ function renderForm(formId, tipo, prefillDoc) {
     form.condiciones.value = prefillDoc.condiciones || CONDICIONES_PAGO_OPTIONS[0];
     form.vencimiento.value = prefillDoc.vencimiento || "";
     form.comentarios.value = prefillDoc.comentarios || "";
+    form.itbisPct.value = (prefillDoc.itbisPct === undefined || prefillDoc.itbisPct === null) ? DEFAULT_ITBIS_PCT : prefillDoc.itbisPct;
     itemsWrap.innerHTML = prefillDoc.items.map((it, i) => itemRowHtml(i)).join("");
     $all(`#${formId}-items .item-row`).forEach((row, i) => {
       row.querySelector(".it-cant").value = prefillDoc.items[i].cantidad;
@@ -200,9 +208,10 @@ function readItems(formId) {
 
 function updateTotalsPreview(formId) {
   const items = readItems(formId);
-  const t = calcTotals(items);
+  const form = $(`#${formId}`);
+  const t = calcTotals(items, form.itbisPct ? form.itbisPct.value : undefined);
   $(`#${formId}-totals`).textContent =
-    `Subtotal: $${fmtMoney(t.subtotal)} · ITBIS (18%): $${fmtMoney(t.itebis)} · Total: $${fmtMoney(t.total)}`;
+    `Subtotal: $${fmtMoney(t.subtotal)} · ITBIS (${t.itbisPct}%): $${fmtMoney(t.itebis)} · Total: $${fmtMoney(t.total)}`;
 }
 
 function renderFacturaSelect() {
@@ -224,6 +233,7 @@ function renderFacturaSelect() {
     }
     form.condiciones.value = cot.condiciones || CONDICIONES_PAGO_OPTIONS[0];
     form.comentarios.value = cot.comentarios || "";
+    form.itbisPct.value = (cot.itbisPct === undefined || cot.itbisPct === null) ? DEFAULT_ITBIS_PCT : cot.itbisPct;
     const wrap = $("#facForm-items");
     wrap.innerHTML = cot.items.map((it, i) => itemRowHtml(i)).join("");
     $all("#facForm-items .item-row").forEach((row, i) => {
@@ -241,7 +251,7 @@ async function submitDoc(formId, tipo, form) {
   if (items.length === 0) { toast("Agrega al menos un renglón", true); return; }
 
   const isEditing = editContext && editContext.tipo === tipo;
-  const totals = calcTotals(items);
+  const totals = calcTotals(items, form.itbisPct ? form.itbisPct.value : undefined);
   const list = tipo === "factura" ? DB.facturas : DB.cotizaciones;
   const existing = isEditing ? list.find(d => d.id === editContext.id) : null;
 

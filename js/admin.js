@@ -42,6 +42,8 @@ function renderGastosPanel() {
       </div>
       <div class="field"><label>Valor Bruto</label><input type="number" step="0.01" name="valorBruto" required></div>
       <div class="field"><label>ITBIS</label><input type="number" step="0.01" name="itbis" value="0"></div>
+      <div class="field"><label>Otros Impuestos (nombre)</label><input name="otrosImpuestosNombre" placeholder="ej. Propina Legal, Impuesto Exportación"></div>
+      <div class="field"><label>% Otros Impuestos</label><input type="number" step="0.01" name="otrosImpuestosPct" value="0"></div>
     </div>
     <div class="totals-preview" id="gastoNetoPreview">Valor Neto: $0.00</div>
     <button type="submit" class="btn btn-primary">Registrar gasto</button>
@@ -49,10 +51,14 @@ function renderGastosPanel() {
   const updatePreview = () => {
     const bruto = parseFloat(form.valorBruto.value) || 0;
     const itbis = parseFloat(form.itbis.value) || 0;
-    $("#gastoNetoPreview").textContent = `Valor Neto: $${fmtMoney(bruto + itbis)}`;
+    const otrosPct = parseFloat(form.otrosImpuestosPct.value) || 0;
+    const otrosValor = Math.round(bruto * (otrosPct / 100) * 100) / 100;
+    $("#gastoNetoPreview").textContent =
+      `Otros Impuestos: $${fmtMoney(otrosValor)} · Valor Neto: $${fmtMoney(bruto + itbis + otrosValor)}`;
   };
   form.valorBruto.addEventListener("input", updatePreview);
   form.itbis.addEventListener("input", updatePreview);
+  form.otrosImpuestosPct.addEventListener("input", updatePreview);
 
   form.onsubmit = async (e) => {
     e.preventDefault();
@@ -66,7 +72,9 @@ function renderGastosPanel() {
         ncf: form.ncf.value,
         categoria: form.categoria.value,
         valorBruto: parseFloat(form.valorBruto.value) || 0,
-        itbis: parseFloat(form.itbis.value) || 0
+        itbis: parseFloat(form.itbis.value) || 0,
+        otrosImpuestosNombre: form.otrosImpuestosNombre.value,
+        otrosImpuestosPct: parseFloat(form.otrosImpuestosPct.value) || 0
       });
       await dbSave();
       toast("Gasto registrado");
@@ -87,10 +95,15 @@ function renderGastosPanel() {
 }
 
 function exportGastosCsv(gastos) {
-  const header = ["Item", "Fecha", "RNC/Cédula", "Razón Social/Nombre", "Concepto", "NCF", "Categoría", "Valor Bruto", "ITBIS", "Valor Neto"];
+  const header = ["Item", "Fecha", "RNC/Cédula", "Razón Social/Nombre", "Concepto", "NCF", "Categoría", "Valor Bruto", "ITBIS", "Otros Impuestos", "% Otros Impuestos", "Valor Otros Impuestos", "Valor Neto"];
   const lines = [header.join(",")];
   gastos.slice().sort((a, b) => a.item - b.item).forEach(g => {
-    lines.push([g.item, g.fecha, g.rncCedula, g.razonSocial, g.concepto, g.ncf, g.categoria, g.valorBruto.toFixed(2), g.itbis.toFixed(2), g.valorNeto.toFixed(2)].map(csvEscape).join(","));
+    lines.push([
+      g.item, g.fecha, g.rncCedula, g.razonSocial, g.concepto, g.ncf, g.categoria,
+      g.valorBruto.toFixed(2), g.itbis.toFixed(2),
+      g.otrosImpuestosNombre || "", (g.otrosImpuestosPct || 0).toFixed(2), (g.otrosImpuestosValor || 0).toFixed(2),
+      g.valorNeto.toFixed(2)
+    ].map(csvEscape).join(","));
   });
   const blob = new Blob(["\uFEFF" + lines.join("\n")], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
@@ -115,6 +128,8 @@ function renderGastosTable() {
       <td>${g.categoria}</td>
       <td class="num">$${fmtMoney(g.valorBruto)}</td>
       <td class="num">$${fmtMoney(g.itbis)}</td>
+      <td>${g.otrosImpuestosNombre ? `${g.otrosImpuestosNombre} (${g.otrosImpuestosPct}%)` : ""}</td>
+      <td class="num">$${fmtMoney(g.otrosImpuestosValor || 0)}</td>
       <td class="num">$${fmtMoney(g.valorNeto)}</td>
       <td><button type="button" class="btn btn-danger btn-sm" onclick="handleDeleteGasto('${g.id}')">Eliminar</button></td>
     </tr>`).join("");
@@ -124,13 +139,15 @@ function renderGastosTable() {
     <table class="data-table">
       <thead><tr>
         <th>ITEM</th><th>Fecha</th><th>RNC/Cédula</th><th>Razón Social/Nombre</th><th>Concepto</th>
-        <th>NCF</th><th>Categoría</th><th>Valor Bruto</th><th>ITBIS</th><th>Valor Neto</th><th></th>
+        <th>NCF</th><th>Categoría</th><th>Valor Bruto</th><th>ITBIS</th><th>Otros Impuestos</th><th>Valor Otros Imp.</th><th>Valor Neto</th><th></th>
       </tr></thead>
-      <tbody>${rows || `<tr><td colspan="11" class="hint">Sin gastos registrados.</td></tr>`}</tbody>
+      <tbody>${rows || `<tr><td colspan="13" class="hint">Sin gastos registrados.</td></tr>`}</tbody>
       <tfoot><tr>
         <td colspan="7"><strong>Totales</strong></td>
         <td class="num"><strong>$${fmtMoney(t.valorBruto)}</strong></td>
         <td class="num"><strong>$${fmtMoney(t.itbis)}</strong></td>
+        <td></td>
+        <td class="num"><strong>$${fmtMoney(t.otrosImpuestosValor)}</strong></td>
         <td class="num"><strong>$${fmtMoney(t.valorNeto)}</strong></td>
         <td></td>
       </tr></tfoot>

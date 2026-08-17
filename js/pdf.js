@@ -30,8 +30,8 @@ function generateDocPdf(doc, tipo) {
   pdf.text(c.telefonos, margin + 12, y + 83);
 
   if (typeof LOGO_BASE64 !== "undefined") {
-    const logoSize = 83;
-    pdf.addImage(LOGO_BASE64, "PNG", pageW - margin - logoSize - 6, y + 3, logoSize, logoSize);
+    const logoSize = 96;
+    pdf.addImage(LOGO_BASE64, "PNG", pageW - margin - logoSize - 4, y + 2, logoSize, logoSize);
   }
 
   y += 100;
@@ -159,7 +159,8 @@ function generateDocPdf(doc, tipo) {
   pdf.text(`$ ${fmtMoney(doc.subtotal)}`, totalsX + totalsW - 4, y + 11, { align: "right" });
 
   pdf.rect(totalsX, y + rowH, totalsW, rowH);
-  pdf.text("ITBIS (18%)", totalsX + 4, y + rowH + 11);
+  const itbisPctDisplay = (doc.itbisPct === undefined || doc.itbisPct === null) ? 18 : doc.itbisPct;
+  pdf.text(`ITBIS (${itbisPctDisplay}%)`, totalsX + 4, y + rowH + 11);
   pdf.text(`$ ${fmtMoney(doc.itebis)}`, totalsX + totalsW - 4, y + rowH + 11, { align: "right" });
 
   pdf.setFillColor(235, 235, 235);
