@@ -30,8 +30,9 @@ function generateDocPdf(doc, tipo) {
   pdf.text(c.telefonos, margin + 12, y + 83);
 
   if (typeof LOGO_BASE64 !== "undefined") {
-    const logoSize = 96;
-    pdf.addImage(LOGO_BASE64, "PNG", pageW - margin - logoSize - 4, y + 2, logoSize, logoSize);
+    const logoSize = 78;
+    const boxHeight = 90;
+    pdf.addImage(LOGO_BASE64, "PNG", pageW - margin - logoSize - 10, y + (boxHeight - logoSize) / 2, logoSize, logoSize);
   }
 
   y += 100;

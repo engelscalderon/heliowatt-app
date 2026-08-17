@@ -363,7 +363,7 @@ async function deleteDocument(tipo, id) {
 }
 
 // ---------------- Dashboard / historial / NCF ----------------
-function docCardHtml(doc, tipo, allowEdit, allowDelete) {
+function docCardHtml(doc, tipo, allowEdit, allowDelete, allowView) {
   return `
   <div class="doc-card">
     <div class="doc-card-main">
@@ -374,10 +374,25 @@ function docCardHtml(doc, tipo, allowEdit, allowDelete) {
     </div>
     <div class="doc-card-right">
       <div class="doc-card-total">$${fmtMoney(doc.total)}</div>
+      ${allowView ? `<button type="button" class="btn btn-outline btn-sm" onclick="viewDocument('${tipo}','${doc.id}')">Ver</button>` : ""}
       ${allowEdit ? `<button type="button" class="btn btn-outline btn-sm" onclick="editDocument('${tipo}','${doc.id}')">Editar</button>` : ""}
       ${allowDelete ? `<button type="button" class="btn btn-danger btn-sm" onclick="deleteDocument('${tipo}','${doc.id}')">Eliminar</button>` : ""}
     </div>
   </div>`;
+}
+
+function viewDocument(tipo, id) {
+  const list = tipo === "factura" ? DB.facturas : DB.cotizaciones;
+  const doc = list.find(d => d.id === id);
+  if (!doc) return;
+  try {
+    const blob = generateDocPdf(doc, tipo);
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank");
+  } catch (e) {
+    console.error(e);
+    toast("No se pudo generar la vista previa: " + e.message, true);
+  }
 }
 
 function renderDashboard() {
@@ -395,8 +410,8 @@ function renderDashboard() {
 
 function renderHistorial() {
   const admin = isAdmin();
-  $("#histCotizaciones").innerHTML = DB.cotizaciones.slice().reverse().map(d => docCardHtml(d, "cotizacion", true, admin)).join("") || `<p class="hint">Sin cotizaciones.</p>`;
-  $("#histFacturas").innerHTML = DB.facturas.slice().reverse().map(d => docCardHtml(d, "factura", admin, admin)).join("") || `<p class="hint">Sin facturas.</p>`;
+  $("#histCotizaciones").innerHTML = DB.cotizaciones.slice().reverse().map(d => docCardHtml(d, "cotizacion", true, admin, true)).join("") || `<p class="hint">Sin cotizaciones.</p>`;
+  $("#histFacturas").innerHTML = DB.facturas.slice().reverse().map(d => docCardHtml(d, "factura", admin, admin, true)).join("") || `<p class="hint">Sin facturas.</p>`;
   $all(".tab-btn").forEach(b => b.onclick = () => {
     $all(".tab-btn").forEach(x => x.classList.remove("active"));
     b.classList.add("active");

@@ -41,23 +41,24 @@ function renderGastosPanel() {
         <select name="categoria">${GASTO_CATEGORIAS.map(c => `<option value="${c}">${c}</option>`).join("")}</select>
       </div>
       <div class="field"><label>Valor Bruto</label><input type="number" step="0.01" name="valorBruto" required></div>
-      <div class="field"><label>ITBIS</label><input type="number" step="0.01" name="itbis" value="0"></div>
+      <div class="field"><label>% ITBIS</label><input type="number" step="0.01" name="itbisPct" value="${DEFAULT_ITBIS_PCT}"></div>
       <div class="field"><label>Otros Impuestos (nombre)</label><input name="otrosImpuestosNombre" placeholder="ej. Propina Legal, Impuesto Exportación"></div>
       <div class="field"><label>% Otros Impuestos</label><input type="number" step="0.01" name="otrosImpuestosPct" value="0"></div>
     </div>
-    <div class="totals-preview" id="gastoNetoPreview">Valor Neto: $0.00</div>
+    <div class="totals-preview" id="gastoNetoPreview">ITBIS: $0.00 · Otros Impuestos: $0.00 · Valor Neto: $0.00</div>
     <button type="submit" class="btn btn-primary">Registrar gasto</button>
   `;
   const updatePreview = () => {
     const bruto = parseFloat(form.valorBruto.value) || 0;
-    const itbis = parseFloat(form.itbis.value) || 0;
+    const itbisPct = parseFloat(form.itbisPct.value) || 0;
+    const itbisValor = Math.round(bruto * (itbisPct / 100) * 100) / 100;
     const otrosPct = parseFloat(form.otrosImpuestosPct.value) || 0;
     const otrosValor = Math.round(bruto * (otrosPct / 100) * 100) / 100;
     $("#gastoNetoPreview").textContent =
-      `Otros Impuestos: $${fmtMoney(otrosValor)} · Valor Neto: $${fmtMoney(bruto + itbis + otrosValor)}`;
+      `ITBIS: $${fmtMoney(itbisValor)} · Otros Impuestos: $${fmtMoney(otrosValor)} · Valor Neto: $${fmtMoney(bruto + itbisValor + otrosValor)}`;
   };
   form.valorBruto.addEventListener("input", updatePreview);
-  form.itbis.addEventListener("input", updatePreview);
+  form.itbisPct.addEventListener("input", updatePreview);
   form.otrosImpuestosPct.addEventListener("input", updatePreview);
 
   form.onsubmit = async (e) => {
@@ -72,13 +73,14 @@ function renderGastosPanel() {
         ncf: form.ncf.value,
         categoria: form.categoria.value,
         valorBruto: parseFloat(form.valorBruto.value) || 0,
-        itbis: parseFloat(form.itbis.value) || 0,
+        itbisPct: parseFloat(form.itbisPct.value) || 0,
         otrosImpuestosNombre: form.otrosImpuestosNombre.value,
         otrosImpuestosPct: parseFloat(form.otrosImpuestosPct.value) || 0
       });
       await dbSave();
       toast("Gasto registrado");
       form.reset();
+      form.itbisPct.value = DEFAULT_ITBIS_PCT;
       updatePreview();
       renderGastosTable();
     } catch (e2) {
@@ -95,12 +97,12 @@ function renderGastosPanel() {
 }
 
 function exportGastosCsv(gastos) {
-  const header = ["Item", "Fecha", "RNC/Cédula", "Razón Social/Nombre", "Concepto", "NCF", "Categoría", "Valor Bruto", "ITBIS", "Otros Impuestos", "% Otros Impuestos", "Valor Otros Impuestos", "Valor Neto"];
+  const header = ["Item", "Fecha", "RNC/Cédula", "Razón Social/Nombre", "Concepto", "NCF", "Categoría", "Valor Bruto", "% ITBIS", "ITBIS", "Otros Impuestos", "% Otros Impuestos", "Valor Otros Impuestos", "Valor Neto"];
   const lines = [header.join(",")];
   gastos.slice().sort((a, b) => a.item - b.item).forEach(g => {
     lines.push([
       g.item, g.fecha, g.rncCedula, g.razonSocial, g.concepto, g.ncf, g.categoria,
-      g.valorBruto.toFixed(2), g.itbis.toFixed(2),
+      g.valorBruto.toFixed(2), (g.itbisPct === undefined ? "" : g.itbisPct.toFixed(2)), g.itbis.toFixed(2),
       g.otrosImpuestosNombre || "", (g.otrosImpuestosPct || 0).toFixed(2), (g.otrosImpuestosValor || 0).toFixed(2),
       g.valorNeto.toFixed(2)
     ].map(csvEscape).join(","));
@@ -127,7 +129,7 @@ function renderGastosTable() {
       <td>${g.ncf}</td>
       <td>${g.categoria}</td>
       <td class="num">$${fmtMoney(g.valorBruto)}</td>
-      <td class="num">$${fmtMoney(g.itbis)}</td>
+      <td class="num">$${fmtMoney(g.itbis)} (${g.itbisPct === undefined ? 18 : g.itbisPct}%)</td>
       <td>${g.otrosImpuestosNombre ? `${g.otrosImpuestosNombre} (${g.otrosImpuestosPct}%)` : ""}</td>
       <td class="num">$${fmtMoney(g.otrosImpuestosValor || 0)}</td>
       <td class="num">$${fmtMoney(g.valorNeto)}</td>

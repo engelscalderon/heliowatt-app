@@ -162,7 +162,8 @@ const GASTO_CATEGORIAS = ["Compras", "Pago de Personal", "Gastos Generales"];
 function addGasto(data) {
   DB.counters.gasto += 1;
   const valorBruto = data.valorBruto || 0;
-  const itbis = data.itbis || 0;
+  const itbisPct = (data.itbisPct === undefined || data.itbisPct === null) ? DEFAULT_ITBIS_PCT : data.itbisPct;
+  const itbis = Math.round(valorBruto * (itbisPct / 100) * 100) / 100;
   const otrosImpuestosPct = data.otrosImpuestosPct || 0;
   const otrosImpuestosValor = Math.round(valorBruto * (otrosImpuestosPct / 100) * 100) / 100;
   const gasto = {
@@ -175,6 +176,7 @@ function addGasto(data) {
     ncf: data.ncf || "",
     categoria: data.categoria || GASTO_CATEGORIAS[0],
     valorBruto,
+    itbisPct,
     itbis,
     otrosImpuestosNombre: data.otrosImpuestosNombre || "",
     otrosImpuestosPct,
