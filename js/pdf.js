@@ -31,7 +31,7 @@ function generateDocPdf(doc, tipo) {
 
   if (typeof LOGO_BASE64 !== "undefined") {
     const logoSize = 90;
-    pdf.addImage(LOGO_BASE64, "PNG", pageW - margin - logoSize - 4, y + 2, logoSize, logoSize);
+    pdf.addImage(LOGO_BASE64, "PNG", pageW - margin - logoSize - 6, y + 3, logoSize, logoSize);
   }
 
   y += 100;
