@@ -76,6 +76,9 @@ async function dbLoad() {
   });
   if (!DB.gastos) { DB.gastos = []; migrated = true; }
   if (!DB.counters.gasto && DB.counters.gasto !== 0) { DB.counters.gasto = DB.gastos.length; migrated = true; }
+  (DB.facturas || []).forEach(f => {
+    if (f.pagada === undefined) { f.pagada = false; migrated = true; }
+  });
   if (migrated) await dbSave();
 
   return DB;
@@ -116,6 +119,11 @@ function marcarNcfUsado(comprobante) {
 function liberarNcf(comprobante) {
   const item = DB.ncfPool.find(x => x.comprobante === comprobante);
   if (item) item.usado = false;
+}
+
+function marcarFacturaPagada(id) {
+  const f = DB.facturas.find(x => x.id === id);
+  if (f) f.pagada = true;
 }
 
 function agregarRangoNcf(tipo, inicio, cantidad) {

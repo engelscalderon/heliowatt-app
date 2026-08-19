@@ -283,6 +283,7 @@ async function submitDoc(formId, tipo, form) {
   if (tipo === "factura") {
     doc.ncf = isEditing ? existing.ncf : ncfItem.comprobante;
     doc.ncfTipo = isEditing ? existing.ncfTipo : ncfItem.tipo;
+    doc.pagada = isEditing ? !!existing.pagada : false;
     if (isEditing && existing.cotizacionId) doc.cotizacionId = existing.cotizacionId;
     const sel = $("#facturaFromCot") ? $("#facturaFromCot").value : "";
     if (!isEditing && sel) doc.cotizacionId = sel;
@@ -363,7 +364,7 @@ async function deleteDocument(tipo, id) {
 }
 
 // ---------------- Dashboard / historial / NCF ----------------
-function docCardHtml(doc, tipo, allowEdit, allowDelete, allowView) {
+function docCardHtml(doc, tipo, allowEdit, allowDelete, allowView, allowPagoRealizado) {
   return `
   <div class="doc-card">
     <div class="doc-card-main">
@@ -371,14 +372,36 @@ function docCardHtml(doc, tipo, allowEdit, allowDelete, allowView) {
       <span>${doc.cliente}</span>
       <span class="muted">${doc.fecha}</span>
       ${tipo === "factura" ? `<span class="pill">${ncfTipoLabel(doc.ncfTipo || doc.ncf.substring(0, 3))} · ${doc.ncf}</span>` : ""}
+      ${tipo === "factura" && doc.pagada ? `<span class="pill pill-success">Saldada</span>` : ""}
     </div>
     <div class="doc-card-right">
       <div class="doc-card-total">$${fmtMoney(doc.total)}</div>
       ${allowView ? `<button type="button" class="btn btn-outline btn-sm" onclick="viewDocument('${tipo}','${doc.id}')">Ver</button>` : ""}
       ${allowEdit ? `<button type="button" class="btn btn-outline btn-sm" onclick="editDocument('${tipo}','${doc.id}')">Editar</button>` : ""}
+      ${allowPagoRealizado ? `<button type="button" class="btn btn-success btn-sm" onclick="handleMarcarPagada('${doc.id}')">Pago Realizado</button>` : ""}
       ${allowDelete ? `<button type="button" class="btn btn-danger btn-sm" onclick="deleteDocument('${tipo}','${doc.id}')">Eliminar</button>` : ""}
     </div>
   </div>`;
+}
+
+async function handleMarcarPagada(id) {
+  if (!isAdmin()) { toast("Solo el módulo Administrativo puede registrar pagos", true); return; }
+  const f = DB.facturas.find(x => x.id === id);
+  if (!f) return;
+  if (!confirm(`¿Marcar la factura ${f.numero} de ${f.cliente} como pagada? Pasará de Pendientes a Saldadas.`)) return;
+  showLoading("Actualizando…");
+  try {
+    marcarFacturaPagada(id);
+    await dbSave();
+    toast(`Factura ${f.numero} marcada como Saldada`);
+    renderHistorial();
+    renderDashboard();
+  } catch (e) {
+    console.error(e);
+    toast("Error al actualizar: " + e.message, true);
+  } finally {
+    hideLoading();
+  }
 }
 
 function viewDocument(tipo, id) {
@@ -411,7 +434,18 @@ function renderDashboard() {
 function renderHistorial() {
   const admin = isAdmin();
   $("#histCotizaciones").innerHTML = DB.cotizaciones.slice().reverse().map(d => docCardHtml(d, "cotizacion", true, admin, true)).join("") || `<p class="hint">Sin cotizaciones.</p>`;
-  $("#histFacturas").innerHTML = DB.facturas.slice().reverse().map(d => docCardHtml(d, "factura", admin, admin, true)).join("") || `<p class="hint">Sin facturas.</p>`;
+
+  const facturas = DB.facturas.slice().reverse();
+  const pendientes = facturas.filter(f => !f.pagada);
+  const saldadas = facturas.filter(f => f.pagada);
+  const renderFacturaGroup = (list) => list.map(d => docCardHtml(d, "factura", admin, admin, true, admin && !d.pagada)).join("") || `<p class="hint">No hay facturas en este grupo.</p>`;
+  $("#histFacturas").innerHTML = `
+    <h3>Pendientes</h3>
+    <div class="doc-list">${renderFacturaGroup(pendientes)}</div>
+    <h3>Saldadas</h3>
+    <div class="doc-list">${renderFacturaGroup(saldadas)}</div>
+  `;
+
   $all(".tab-btn").forEach(b => b.onclick = () => {
     $all(".tab-btn").forEach(x => x.classList.remove("active"));
     b.classList.add("active");
