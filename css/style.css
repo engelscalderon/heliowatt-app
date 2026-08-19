@@ -18,7 +18,7 @@ body { margin: 0; background: var(--paper); color: var(--ink); }
 /* ---- Top bar ---- */
 .topbar {
   display: flex; align-items: center; justify-content: space-between;
-  background: var(--ink); color: white; padding: 10px 16px; flex-wrap: wrap; gap: 10px;
+ background: linear-gradient(to right, #D8D8D8 0%, var(--ink) 25%); color: white; padding: 10px 16px; flex-wrap: wrap; gap: 10px;
   position: sticky; top: 0; z-index: 10;
 }
 .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 1.1rem; }
