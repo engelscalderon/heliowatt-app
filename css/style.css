@@ -18,7 +18,7 @@ body { margin: 0; background: var(--paper); color: var(--ink); }
 /* ---- Top bar ---- */
 .topbar {
   display: flex; align-items: center; justify-content: space-between;
-  background: linear-gradient(to right, #D8D8D8 0%, var(--ink) 25%);; color: white; padding: 10px 16px; flex-wrap: wrap; gap: 10px;
+  background: var(--ink); color: white; padding: 10px 16px; flex-wrap: wrap; gap: 10px;
   position: sticky; top: 0; z-index: 10;
 }
 .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 1.1rem; }
@@ -43,6 +43,8 @@ nav#mainNav { display: flex; gap: 4px; flex-wrap: wrap; }
 .btn-outline:hover { border-color: var(--blue); color: var(--blue); }
 .btn-danger { background: transparent; border: 1px solid var(--red); color: var(--red); }
 .btn-danger:hover { background: var(--red); color: white; }
+.btn-success { background: var(--green); border: 1px solid var(--green); color: white; }
+.btn-success:hover { background: #267a41; }
 .topbar .btn-outline { border-color: #666; color: #eee; }
 
 /* ---- Main ---- */
@@ -74,6 +76,7 @@ code { background: #eee; padding: 2px 6px; border-radius: 4px; }
 .doc-card-right { display: flex; align-items: center; gap: 10px; }
 .btn-sm { padding: 5px 10px; font-size: 0.78rem; }
 .pill { background: var(--blue); color: white; font-size: 0.7rem; padding: 2px 8px; border-radius: 20px; }
+.pill-success { background: var(--green); }
 
 /* ---- Forms ---- */
 .doc-form { background: white; border: 1px solid var(--line); border-radius: 12px; padding: 18px; margin-top: 8px; }
