@@ -191,5 +191,18 @@ function generateDocPdf(doc, tipo) {
   pdf.text(payLines, pageW / 2, y + 26, { align: "center" });
   pdf.setTextColor(0, 0, 0);
 
+  if (tipo === "factura" && doc.pagada) {
+    pdf.saveGraphicsState();
+    pdf.setGState(new pdf.GState({ opacity: 0.18 }));
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(90);
+    pdf.setTextColor(30, 140, 60);
+    const cx = pdf.internal.pageSize.getWidth() / 2;
+    const cy = pdf.internal.pageSize.getHeight() / 2;
+    pdf.text("PAGADA", cx, cy, { align: "center", angle: 35 });
+    pdf.restoreGraphicsState();
+    pdf.setTextColor(0, 0, 0);
+  }
+
   return pdf.output("blob");
 }

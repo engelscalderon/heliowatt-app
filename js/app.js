@@ -63,6 +63,7 @@ function editDocument(tipo, id) {
   const list = tipo === "factura" ? DB.facturas : DB.cotizaciones;
   const doc = list.find(d => d.id === id);
   if (!doc) return;
+  if (tipo === "factura" && doc.pagada) { toast("Esta factura ya está Saldada y no puede editarse", true); return; }
   editContext = { tipo, id };
   $all(".view").forEach(v => v.classList.add("hidden"));
   $(`#view-${tipo}`).classList.remove("hidden");
@@ -339,6 +340,7 @@ async function deleteDocument(tipo, id) {
   const list = tipo === "factura" ? DB.facturas : DB.cotizaciones;
   const doc = list.find(d => d.id === id);
   if (!doc) return;
+  if (tipo === "factura" && doc.pagada) { toast("Esta factura ya está Saldada y no puede eliminarse", true); return; }
 
   const confirmMsg = tipo === "factura"
     ? `¿Eliminar la factura ${doc.numero} de ${doc.cliente}?\n\nEl comprobante fiscal ${doc.ncf} quedará disponible de nuevo para usarse en otra factura.`
@@ -438,12 +440,12 @@ function renderHistorial() {
   const facturas = DB.facturas.slice().reverse();
   const pendientes = facturas.filter(f => !f.pagada);
   const saldadas = facturas.filter(f => f.pagada);
-  const renderFacturaGroup = (list) => list.map(d => docCardHtml(d, "factura", admin, admin, true, admin && !d.pagada)).join("") || `<p class="hint">No hay facturas en este grupo.</p>`;
+  const renderFacturaGroup = (list, saldada) => list.map(d => docCardHtml(d, "factura", admin && !saldada, admin && !saldada, true, admin && !d.pagada)).join("") || `<p class="hint">No hay facturas en este grupo.</p>`;
   $("#histFacturas").innerHTML = `
     <h3>Pendientes</h3>
-    <div class="doc-list">${renderFacturaGroup(pendientes)}</div>
+    <div class="doc-list">${renderFacturaGroup(pendientes, false)}</div>
     <h3>Saldadas</h3>
-    <div class="doc-list">${renderFacturaGroup(saldadas)}</div>
+    <div class="doc-list">${renderFacturaGroup(saldadas, true)}</div>
   `;
 
   $all(".tab-btn").forEach(b => b.onclick = () => {
