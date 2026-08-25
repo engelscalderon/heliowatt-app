@@ -76,7 +76,7 @@ function generateDocPdf(doc, tipo) {
 
   // ---- Cintillo aviso RST (solo en facturas), en una sola línea con colores tenues ----
   if (tipo === "factura") {
-    const noticeText = "Contribuyente Acogido al Régimen Simplificado de Tributación (RST), retener el 100% del ITBIS y remitir carta de retención adjunto a su comprobante de pago.";
+    const noticeText = "Contribuyente Acogido al Régimen Simplificado de Tributación (RST), Retener el 100% del ITBIS y Remitir Carta de Retención Adjunto a su Comprobante de Pago.";
     const availW = pageW - margin * 2 - 16;
     let fs = 8;
     pdf.setFont("helvetica", "normal");
