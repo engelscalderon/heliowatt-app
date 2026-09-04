@@ -121,9 +121,13 @@ function liberarNcf(comprobante) {
   if (item) item.usado = false;
 }
 
-function marcarFacturaPagada(id) {
+function marcarFacturaPagada(id, ncf, ncfTipo) {
   const f = DB.facturas.find(x => x.id === id);
-  if (f) f.pagada = true;
+  if (f) {
+    f.pagada = true;
+    if (ncf) f.ncf = ncf;
+    if (ncfTipo) f.ncfTipo = ncfTipo;
+  }
 }
 
 function agregarRangoNcf(tipo, inicio, cantidad) {

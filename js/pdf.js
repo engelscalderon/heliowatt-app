@@ -65,18 +65,33 @@ function generateDocPdf(doc, tipo) {
     pdf.setFont("helvetica", "bold");
     pdf.text("NCF", rx, y + 24);
     pdf.setFont("helvetica", "normal");
-    pdf.text(doc.ncf || "", rx + 100, y + 24);
+    pdf.text(doc.ncf || "Pendiente de pago", rx + 100, y + 24);
   }
   pdf.setFont("helvetica", "bold");
   pdf.text("ID. DEL CLIENTE", rx, y + 36);
   pdf.setFont("helvetica", "normal");
   pdf.text(String(doc.idCliente || ""), rx + 100, y + 36);
 
+  // ---- Aviso discreto: NCF pendiente de asignación (solo facturas no pagadas) ----
+  if (tipo === "factura" && !doc.pagada) {
+    const pendingText = "-FACTURA PROFORMA- Documento sin NCF asignado — se asignará automáticamente al confirmarse el pago de esta factura.";
+    const availWPending = pageW - margin * 2 - 16;
+    let fsPending = 7.5;
+    pdf.setFont("helvetica", "italic");
+    do {
+      pdf.setFontSize(fsPending);
+      fsPending -= 0.25;
+    } while (pdf.getTextWidth(pendingText) > availWPending && fsPending > 5.5);
+    pdf.setTextColor(150, 150, 150);
+    pdf.text(pendingText, pageW / 2, y + 52, { align: "center" });
+    pdf.setTextColor(0, 0, 0);
+  }
+
   y += boxH;
 
   // ---- Cintillo aviso RST (solo en facturas), en una sola línea con colores tenues ----
   if (tipo === "factura") {
-    const noticeText = "Contribuyente Acogido al Régimen Simplificado de Tributación (RST), Retener el 100% del ITBIS y Remitir Carta de Retención Adjunto a su Comprobante de Pago.";
+    const noticeText = "Contribuyente Acogido al Régimen Simplificado de Tributación (RST), retener el 100% del ITBIS y remitir carta de retención adjunto a su comprobante de pago.";
     const availW = pageW - margin * 2 - 16;
     let fs = 8;
     pdf.setFont("helvetica", "normal");
@@ -176,6 +191,15 @@ function generateDocPdf(doc, tipo) {
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(9);
   pdf.text("Recibido Por: ___________________________", margin, y);
+
+  if (tipo === "factura" && doc.pagada && typeof SELLO_BASE64 !== "undefined") {
+    const selloSize = 85;
+    pdf.saveGraphicsState();
+    pdf.setGState(new pdf.GState({ opacity: 0.9 }));
+    pdf.addImage(SELLO_BASE64, "PNG", pageW - margin - selloSize - 4, y - selloSize + 18, selloSize, selloSize);
+    pdf.restoreGraphicsState();
+  }
+
   y += 20;
 
   // ---- Pie ----

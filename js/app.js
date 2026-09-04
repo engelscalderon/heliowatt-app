@@ -93,12 +93,6 @@ function renderForm(formId, tipo, prefillDoc) {
       <div class="field"><label>Dirección del cliente</label><input name="direccion"></div>
       <div class="field"><label>Atención (contacto)</label><input name="atencion"></div>
       <div class="field"><label>ID del cliente</label><input name="idCliente"></div>
-      ${tipo === "factura" ? `
-      <div class="field"><label>Comprobante</label>
-        <select name="comprobanteTipo" ${isEdit ? "disabled" : ""}>
-          ${NCF_TIPOS.map(t => `<option value="${t.prefijo}" ${t.prefijo === "B02" ? "selected" : ""}>${t.label} (${t.prefijo}xxxxxxxx)</option>`).join("")}
-        </select>
-      </div>` : ""}
       <div class="field"><label>Trabajo / servicio</label><input name="trabajo" required></div>
       <div class="field"><label>Condiciones de pago</label>
         <select name="condiciones">
@@ -152,9 +146,6 @@ function renderForm(formId, tipo, prefillDoc) {
   form.itbisPct.addEventListener("input", () => updateTotalsPreview(formId));
 
   if (isEdit) {
-    if (tipo === "factura" && form.comprobanteTipo) {
-      form.comprobanteTipo.value = prefillDoc.ncfTipo || (prefillDoc.ncf ? prefillDoc.ncf.substring(0, 3) : "B02");
-    }
     form.cliente.value = prefillDoc.cliente || "";
     form.rnc.value = prefillDoc.rnc || "";
     form.direccion.value = prefillDoc.direccion || "";
@@ -256,13 +247,6 @@ async function submitDoc(formId, tipo, form) {
   const list = tipo === "factura" ? DB.facturas : DB.cotizaciones;
   const existing = isEditing ? list.find(d => d.id === editContext.id) : null;
 
-  let ncfItem = null;
-  if (tipo === "factura" && !isEditing) {
-    const comprobanteTipo = form.comprobanteTipo ? form.comprobanteTipo.value : "B02";
-    ncfItem = nextAvailableNcf(comprobanteTipo);
-    if (!ncfItem) { toast(`No quedan comprobantes de tipo ${ncfTipoLabel(comprobanteTipo)} (${comprobanteTipo}) disponibles. Agrega un nuevo rango en 'Comprobantes'.`, true); return; }
-  }
-
   const numero = isEditing ? existing.numero : nextDocNumber(tipo);
   const fecha = isEditing ? existing.fecha : fmtDate(new Date());
   const doc = {
@@ -282,8 +266,9 @@ async function submitDoc(formId, tipo, form) {
     ...totals
   };
   if (tipo === "factura") {
-    doc.ncf = isEditing ? existing.ncf : ncfItem.comprobante;
-    doc.ncfTipo = isEditing ? existing.ncfTipo : ncfItem.tipo;
+    // El NCF ya NO se asigna aquí: se asignará al marcar la factura como "Pago Realizado".
+    doc.ncf = isEditing ? existing.ncf : null;
+    doc.ncfTipo = isEditing ? existing.ncfTipo : null;
     doc.pagada = isEditing ? !!existing.pagada : false;
     if (isEditing && existing.cotizacionId) doc.cotizacionId = existing.cotizacionId;
     const sel = $("#facturaFromCot") ? $("#facturaFromCot").value : "";
@@ -310,7 +295,6 @@ async function submitDoc(formId, tipo, form) {
       const idx = list.findIndex(d => d.id === existing.id);
       list[idx] = doc;
     } else if (tipo === "factura") {
-      marcarNcfUsado(ncfItem.comprobante);
       DB.facturas.push(doc);
     } else {
       DB.cotizaciones.push(doc);
@@ -373,7 +357,8 @@ function docCardHtml(doc, tipo, allowEdit, allowDelete, allowView, allowPagoReal
       <strong>${doc.numero}</strong>
       <span>${doc.cliente}</span>
       <span class="muted">${doc.fecha}</span>
-      ${tipo === "factura" ? `<span class="pill">${ncfTipoLabel(doc.ncfTipo || doc.ncf.substring(0, 3))} · ${doc.ncf}</span>` : ""}
+      ${tipo === "factura" && doc.ncf ? `<span class="pill">${ncfTipoLabel(doc.ncfTipo || doc.ncf.substring(0, 3))} · ${doc.ncf}</span>` : ""}
+      ${tipo === "factura" && !doc.ncf ? `<span class="pill pill-muted">NCF pendiente</span>` : ""}
       ${tipo === "factura" && doc.pagada ? `<span class="pill pill-success">Saldada</span>` : ""}
     </div>
     <div class="doc-card-right">
@@ -390,12 +375,33 @@ async function handleMarcarPagada(id) {
   if (!isAdmin()) { toast("Solo el módulo Administrativo puede registrar pagos", true); return; }
   const f = DB.facturas.find(x => x.id === id);
   if (!f) return;
-  if (!confirm(`¿Marcar la factura ${f.numero} de ${f.cliente} como pagada? Pasará de Pendientes a Saldadas.`)) return;
-  showLoading("Actualizando…");
+
+  const opciones = NCF_TIPOS.map(t => `${t.prefijo} = ${t.label}`).join("\n");
+  const entrada = prompt(`Al confirmar el pago se asignará el comprobante fiscal (NCF).\n\n¿Qué tipo de comprobante corresponde?\n${opciones}\n\nEscribe el código:`, "B02");
+  if (entrada === null) return;
+  const tipoComprobante = entrada.trim().toUpperCase();
+  const tipoValido = NCF_TIPOS.find(t => t.prefijo === tipoComprobante);
+  if (!tipoValido) { toast(`"${entrada}" no es un tipo de comprobante válido.`, true); return; }
+
+  const ncfItem = nextAvailableNcf(tipoComprobante);
+  if (!ncfItem) { toast(`No quedan comprobantes de tipo ${tipoValido.label} (${tipoComprobante}) disponibles. Agrega un nuevo rango en 'Comprobantes'.`, true); return; }
+
+  if (!confirm(`¿Marcar la factura ${f.numero} de ${f.cliente} como pagada?\n\nSe le asignará el comprobante ${ncfItem.comprobante} (${tipoValido.label}) y pasará a Saldadas.`)) return;
+
+  showLoading("Registrando pago…");
   try {
-    marcarFacturaPagada(id);
+    marcarNcfUsado(ncfItem.comprobante);
+    marcarFacturaPagada(id, ncfItem.comprobante, tipoComprobante);
+    // Regenerar y resubir el PDF: ahora debe mostrar el NCF, el sello y la marca "PAGADA"
+    const blob = generateDocPdf(f, "factura");
+    if (f.pdfPath) {
+      const parts = f.pdfPath.split("/");
+      const filename = parts.pop();
+      const subfolder = parts.pop();
+      f.pdfPath = await uploadPdf(subfolder, filename, blob);
+    }
     await dbSave();
-    toast(`Factura ${f.numero} marcada como Saldada`);
+    toast(`Factura ${f.numero} marcada como Saldada · NCF ${ncfItem.comprobante} asignado`);
     renderHistorial();
     renderDashboard();
   } catch (e) {
