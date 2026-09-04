@@ -188,7 +188,7 @@ function generateDocPdf(doc, tipo) {
 
   const isPagada = tipo === "factura" && doc.pagada && typeof SELLO_BASE64 !== "undefined";
   const selloSize = 72;
-  const signatureGap = isPagada ? Math.max(20, selloSize + 12) : 20;
+  const signatureGap = isPagada ? 70 : 20;
 
   y += rowH * 3 + signatureGap;
 
@@ -199,7 +199,7 @@ function generateDocPdf(doc, tipo) {
   if (isPagada) {
     pdf.saveGraphicsState();
     pdf.setGState(new pdf.GState({ opacity: 0.9 }));
-    pdf.addImage(SELLO_BASE64, "PNG", pageW - margin - selloSize - 4, y - selloSize + 4, selloSize, selloSize);
+    pdf.addImage(SELLO_BASE64, "PNG", pageW - margin - selloSize - 4, y - selloSize + 10, selloSize, selloSize);
     pdf.restoreGraphicsState();
   }
 
