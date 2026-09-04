@@ -3,7 +3,7 @@
 // ============================================================
 const APP_CONFIG = {
   // Client ID que te da Azure al registrar la app (ver SETUP.md paso 2)
-  clientId: "PEGA-AQUI-TU-CLIENT-ID",
+  clientId: "fc6a52e5-ec89-4f5c-bf12-30335106166d",
 
   // Debe coincidir EXACTO con la URL donde publiques la app (ver SETUP.md paso 3)
   // Ejemplo: "https://tuusuario.github.io/heliowatt-app/"
