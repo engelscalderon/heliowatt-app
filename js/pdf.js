@@ -186,17 +186,20 @@ function generateDocPdf(doc, tipo) {
   pdf.text("TOTAL", totalsX + 4, y + rowH * 2 + 12);
   pdf.text(`$ ${fmtMoney(doc.total)}`, totalsX + totalsW - 4, y + rowH * 2 + 12, { align: "right" });
 
-  y += rowH * 3 + 20;
+  const isPagada = tipo === "factura" && doc.pagada && typeof SELLO_BASE64 !== "undefined";
+  const selloSize = 72;
+  const signatureGap = isPagada ? Math.max(20, selloSize + 12) : 20;
+
+  y += rowH * 3 + signatureGap;
 
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(9);
   pdf.text("Recibido Por: ___________________________", margin, y);
 
-  if (tipo === "factura" && doc.pagada && typeof SELLO_BASE64 !== "undefined") {
-    const selloSize = 85;
+  if (isPagada) {
     pdf.saveGraphicsState();
     pdf.setGState(new pdf.GState({ opacity: 0.9 }));
-    pdf.addImage(SELLO_BASE64, "PNG", pageW - margin - selloSize - 4, y - selloSize + 18, selloSize, selloSize);
+    pdf.addImage(SELLO_BASE64, "PNG", pageW - margin - selloSize - 4, y - selloSize + 4, selloSize, selloSize);
     pdf.restoreGraphicsState();
   }
 
