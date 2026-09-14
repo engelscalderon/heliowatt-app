@@ -63,7 +63,7 @@ function editDocument(tipo, id) {
   const list = tipo === "factura" ? DB.facturas : DB.cotizaciones;
   const doc = list.find(d => d.id === id);
   if (!doc) return;
- // if (tipo === "factura" && doc.pagada) { toast("Esta factura ya está Saldada y no puede editarse", true); return; }
+  if (tipo === "factura" && doc.pagada) { toast("Esta factura ya está Saldada y no puede editarse", true); return; }
   editContext = { tipo, id };
   $all(".view").forEach(v => v.classList.add("hidden"));
   $(`#view-${tipo}`).classList.remove("hidden");
