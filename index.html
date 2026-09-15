@@ -29,6 +29,7 @@
     <button data-view="dashboard" class="nav-btn active">Inicio</button>
     <button data-view="cotizacion" class="nav-btn">Nueva cotización</button>
     <button data-view="factura" class="nav-btn">Nueva factura</button>
+    <button data-view="recibo" class="nav-btn">Nuevo recibo</button>
     <button data-view="historial" class="nav-btn">Historial</button>
     <button data-view="administracion" id="navAdmin" class="nav-btn hidden">Administración</button>
   </nav>
@@ -88,14 +89,27 @@
     <form id="facForm" class="doc-form"></form>
   </section>
 
+  <section id="view-recibo" class="view hidden">
+    <h1>Nuevo recibo de ingreso</h1>
+    <div class="field">
+      <label>Generar a partir de una cotización existente</label>
+      <select id="reciboFromCot">
+        <option value="">— Recibo directo (sin cotización) —</option>
+      </select>
+    </div>
+    <form id="recForm" class="doc-form"></form>
+  </section>
+
   <section id="view-historial" class="view hidden">
     <h1>Historial</h1>
     <div class="tabs">
       <button class="tab-btn active" data-tab="cotizaciones">Cotizaciones</button>
       <button class="tab-btn" data-tab="facturas">Facturas</button>
+      <button class="tab-btn" data-tab="recibos">Recibos</button>
     </div>
     <div id="histCotizaciones" class="doc-list"></div>
     <div id="histFacturas" class="doc-list hidden"></div>
+    <div id="histRecibos" class="doc-list hidden"></div>
   </section>
 
   <section id="view-administracion" class="view hidden">
