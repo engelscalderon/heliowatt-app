@@ -2,7 +2,7 @@
 // PDF — genera la cotización/factura con el formato de HelioWatt
 // ============================================================
 function generateDocPdf(doc, tipo) {
-  // tipo: "cotizacion" | "factura"
+  // tipo: "cotizacion" | "factura" | "recibo"
   const c = APP_CONFIG.company;
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF({ unit: "pt", format: "letter" });
@@ -52,7 +52,7 @@ function generateDocPdf(doc, tipo) {
   pdf.text(doc.atencion || "", margin + 60, y + 36);
 
   const rx = pageW - margin - 220;
-  const label = tipo === "factura" ? "N.º FACTURA" : "N.º COTIZACIÓN";
+  const label = tipo === "factura" ? "N.º FACTURA" : tipo === "recibo" ? "N.º RECIBO" : "N.º COTIZACIÓN";
   pdf.setFont("helvetica", "bold");
   pdf.text(label, rx, y);
   pdf.setFont("helvetica", "normal");
@@ -66,6 +66,12 @@ function generateDocPdf(doc, tipo) {
     pdf.text("NCF", rx, y + 24);
     pdf.setFont("helvetica", "normal");
     pdf.text(doc.ncf || "Pendiente de pago", rx + 100, y + 24);
+  }
+  if (tipo === "recibo") {
+    pdf.setFont("helvetica", "bold");
+    pdf.setTextColor(30, 100, 168);
+    pdf.text("RECIBO DE INGRESO", rx, y + 24);
+    pdf.setTextColor(0, 0, 0);
   }
   pdf.setFont("helvetica", "bold");
   pdf.text("ID. DEL CLIENTE", rx, y + 36);
@@ -186,7 +192,7 @@ function generateDocPdf(doc, tipo) {
   pdf.text("TOTAL", totalsX + 4, y + rowH * 2 + 12);
   pdf.text(`$ ${fmtMoney(doc.total)}`, totalsX + totalsW - 4, y + rowH * 2 + 12, { align: "right" });
 
-  const isPagada = tipo === "factura" && doc.pagada && typeof SELLO_BASE64 !== "undefined";
+  const isPagada = (tipo === "factura" || tipo === "recibo") && doc.pagada && typeof SELLO_BASE64 !== "undefined";
   const selloSize = 72;
   const signatureGap = isPagada ? 70 : 20;
 
@@ -218,7 +224,7 @@ function generateDocPdf(doc, tipo) {
   pdf.text(payLines, pageW / 2, y + 26, { align: "center" });
   pdf.setTextColor(0, 0, 0);
 
-  if (tipo === "factura" && doc.pagada) {
+  if ((tipo === "factura" || tipo === "recibo") && doc.pagada) {
     pdf.saveGraphicsState();
     pdf.setGState(new pdf.GState({ opacity: 0.18 }));
     pdf.setFont("helvetica", "bold");

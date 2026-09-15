@@ -25,10 +25,11 @@ function generarRango(prefijo, inicio, cantidad, primeroUsado) {
 
 function defaultDb() {
   return {
-    version: 3,
+    version: 4,
     counters: {
       cotizacion: 0,
       factura: 0,
+      recibo: 0,
       gasto: 0
     },
     // Catálogo de clientes e items usados anteriormente, para autollenado (como una mini base de datos)
@@ -45,7 +46,8 @@ function defaultDb() {
       ...generarRango("B04", 1, 10, false)
     ],
     cotizaciones: [], // {id, numero, fecha, cliente, rnc, atencion, direccion, trabajo, condiciones, vencimiento, items[], comentarios, subtotal, itebis, total, pdfPath}
-    facturas: [],     // igual + {ncf, ncfTipo, cotizacionId}
+    facturas: [],     // igual + {ncf, ncfTipo, cotizacionId, pagada}
+    recibos: [],      // igual que facturas pero SIN ncf/ncfTipo (Recibo de Ingreso) + {cotizacionId, pagada}
     // Registro de gastos y compras de la empresa
     gastos: [] // {id, item, fecha, rncCedula, razonSocial, concepto, ncf, categoria, valorBruto, itbis, valorNeto}
   };
@@ -76,8 +78,13 @@ async function dbLoad() {
   });
   if (!DB.gastos) { DB.gastos = []; migrated = true; }
   if (!DB.counters.gasto && DB.counters.gasto !== 0) { DB.counters.gasto = DB.gastos.length; migrated = true; }
+  if (!DB.recibos) { DB.recibos = []; migrated = true; }
+  if (!DB.counters.recibo && DB.counters.recibo !== 0) { DB.counters.recibo = DB.recibos.length; migrated = true; }
   (DB.facturas || []).forEach(f => {
     if (f.pagada === undefined) { f.pagada = false; migrated = true; }
+  });
+  (DB.recibos || []).forEach(r => {
+    if (r.pagada === undefined) { r.pagada = false; migrated = true; }
   });
   if (migrated) await dbSave();
 
@@ -121,6 +128,12 @@ function liberarNcf(comprobante) {
   if (item) item.usado = false;
 }
 
+function listaPorTipo(tipo) {
+  if (tipo === "factura") return DB.facturas;
+  if (tipo === "recibo") return DB.recibos;
+  return DB.cotizaciones;
+}
+
 function marcarFacturaPagada(id, ncf, ncfTipo) {
   const f = DB.facturas.find(x => x.id === id);
   if (f) {
@@ -128,6 +141,11 @@ function marcarFacturaPagada(id, ncf, ncfTipo) {
     if (ncf) f.ncf = ncf;
     if (ncfTipo) f.ncfTipo = ncfTipo;
   }
+}
+
+function marcarReciboPagado(id) {
+  const r = DB.recibos.find(x => x.id === id);
+  if (r) r.pagada = true;
 }
 
 function agregarRangoNcf(tipo, inicio, cantidad) {

@@ -54,13 +54,14 @@ function showView(name) {
   if (name === "dashboard") renderDashboard();
   if (name === "cotizacion") { editContext = null; renderForm("cotForm", "cotizacion"); }
   if (name === "factura") { editContext = null; renderFacturaSelect(); renderForm("facForm", "factura"); }
+  if (name === "recibo") { editContext = null; renderReciboSelect(); renderForm("recForm", "recibo"); }
   if (name === "historial") renderHistorial();
   if (name === "administracion") renderAdministracion();
 }
 
 function editDocument(tipo, id) {
-  if (tipo === "factura" && !isAdmin()) { toast("Solo el módulo Administrativo puede editar facturas", true); return; }
-  const list = tipo === "factura" ? DB.facturas : DB.cotizaciones;
+  if ((tipo === "factura" || tipo === "recibo") && !isAdmin()) { toast("Solo el módulo Administrativo puede editar este documento", true); return; }
+  const list = listaPorTipo(tipo);
   const doc = list.find(d => d.id === id);
   if (!doc) return;
   editContext = { tipo, id };
@@ -68,7 +69,9 @@ function editDocument(tipo, id) {
   $(`#view-${tipo}`).classList.remove("hidden");
   $all(".nav-btn").forEach(b => b.classList.toggle("active", b.dataset.view === tipo));
   if (tipo === "factura") renderFacturaSelect();
-  renderForm(tipo === "factura" ? "facForm" : "cotForm", tipo, doc);
+  if (tipo === "recibo") renderReciboSelect();
+  const formId = tipo === "factura" ? "facForm" : tipo === "recibo" ? "recForm" : "cotForm";
+  renderForm(formId, tipo, doc);
 }
 
 // ---------------- Formularios de documento ----------------
@@ -119,7 +122,7 @@ function renderForm(formId, tipo, prefillDoc) {
     <div class="totals-preview" id="${formId}-totals">Subtotal: $0.00 · ITBIS: $0.00 · Total: $0.00</div>
 
     <div class="form-actions">
-      <button type="submit" class="btn btn-primary">${isEdit ? "Guardar cambios" : (tipo === "factura" ? "Generar factura" : "Generar cotización")}</button>
+      <button type="submit" class="btn btn-primary">${isEdit ? "Guardar cambios" : (tipo === "factura" ? "Generar factura" : tipo === "recibo" ? "Generar recibo" : "Generar cotización")}</button>
       ${isEdit ? `<button type="button" class="btn btn-outline" id="${formId}-cancelEdit">Cancelar edición</button>` : ""}
     </div>
   `;
@@ -237,13 +240,45 @@ function renderFacturaSelect() {
   };
 }
 
+function renderReciboSelect() {
+  const sel = $("#reciboFromCot");
+  sel.innerHTML = `<option value="">— Recibo directo (sin cotización) —</option>` +
+    DB.cotizaciones.slice().reverse().map(c => `<option value="${c.id}">${c.numero} — ${c.cliente}</option>`).join("");
+  sel.onchange = () => {
+    const cot = DB.cotizaciones.find(c => c.id === sel.value);
+    const form = $("#recForm");
+    if (!cot) return;
+    form.cliente.value = cot.cliente;
+    form.rnc.value = cot.rnc || "";
+    form.direccion.value = cot.direccion || "";
+    form.atencion.value = cot.atencion || "";
+    form.idCliente.value = cot.idCliente || "";
+    form.trabajo.value = cot.trabajo;
+    if (cot.condiciones && !CONDICIONES_PAGO_OPTIONS.includes(cot.condiciones)) {
+      form.condiciones.insertAdjacentHTML("afterbegin", `<option value="${cot.condiciones}">${cot.condiciones}</option>`);
+    }
+    form.condiciones.value = cot.condiciones || CONDICIONES_PAGO_OPTIONS[0];
+    form.comentarios.value = cot.comentarios || "";
+    form.itbisPct.value = (cot.itbisPct === undefined || cot.itbisPct === null) ? DEFAULT_ITBIS_PCT : cot.itbisPct;
+    const wrap = $("#recForm-items");
+    wrap.innerHTML = cot.items.map((it, i) => itemRowHtml(i)).join("");
+    $all("#recForm-items .item-row").forEach((row, i) => {
+      row.querySelector(".it-cant").value = cot.items[i].cantidad;
+      row.querySelector(".it-desc").value = cot.items[i].descripcion;
+      row.querySelector(".it-precio").value = cot.items[i].precio;
+      wireItemRow(row, "recForm");
+    });
+    updateTotalsPreview("recForm");
+  };
+}
+
 async function submitDoc(formId, tipo, form) {
   const items = readItems(formId);
   if (items.length === 0) { toast("Agrega al menos un renglón", true); return; }
 
   const isEditing = editContext && editContext.tipo === tipo;
   const totals = calcTotals(items, form.itbisPct ? form.itbisPct.value : undefined);
-  const list = tipo === "factura" ? DB.facturas : DB.cotizaciones;
+  const list = listaPorTipo(tipo);
   const existing = isEditing ? list.find(d => d.id === editContext.id) : null;
 
   const numero = isEditing ? existing.numero : nextDocNumber(tipo);
@@ -273,19 +308,27 @@ async function submitDoc(formId, tipo, form) {
     const sel = $("#facturaFromCot") ? $("#facturaFromCot").value : "";
     if (!isEditing && sel) doc.cotizacionId = sel;
   }
+  if (tipo === "recibo") {
+    // Los recibos de ingreso nunca llevan NCF
+    doc.pagada = isEditing ? !!existing.pagada : false;
+    if (isEditing && existing.cotizacionId) doc.cotizacionId = existing.cotizacionId;
+    const sel = $("#reciboFromCot") ? $("#reciboFromCot").value : "";
+    if (!isEditing && sel) doc.cotizacionId = sel;
+  }
 
   showLoading(isEditing ? "Guardando cambios…" : `Generando ${tipo}…`);
   try {
     const blob = generateDocPdf(doc, tipo);
     let path;
+    const prefijoArchivo = tipo === "factura" ? "FACT" : tipo === "recibo" ? "REC" : "COT";
+    const subfolder = tipo === "factura" ? "Facturas" : tipo === "recibo" ? "Recibos" : "Cotizaciones";
     if (isEditing && existing.pdfPath) {
       const parts = existing.pdfPath.split("/");
       const filename = parts.pop();
-      const subfolder = parts.pop();
-      path = await uploadPdf(subfolder, filename, blob);
+      const subfolderExisting = parts.pop();
+      path = await uploadPdf(subfolderExisting, filename, blob);
     } else {
-      const filename = `${tipo === "factura" ? "FACT" : "COT"}-${numero.replace("/", "-")}-${doc.cliente.replace(/[^a-zA-Z0-9]/g, "_")}.pdf`;
-      const subfolder = tipo === "factura" ? "Facturas" : "Cotizaciones";
+      const filename = `${prefijoArchivo}-${numero.replace("/", "-")}-${doc.cliente.replace(/[^a-zA-Z0-9]/g, "_")}.pdf`;
       path = await uploadPdf(subfolder, filename, blob);
     }
     doc.pdfPath = path;
@@ -293,10 +336,8 @@ async function submitDoc(formId, tipo, form) {
     if (isEditing) {
       const idx = list.findIndex(d => d.id === existing.id);
       list[idx] = doc;
-    } else if (tipo === "factura") {
-      DB.facturas.push(doc);
     } else {
-      DB.cotizaciones.push(doc);
+      list.push(doc);
     }
     upsertCatalog(doc);
     await dbSave();
@@ -306,7 +347,8 @@ async function submitDoc(formId, tipo, form) {
     const a = document.createElement("a");
     a.href = url; a.download = path.split("/").pop(); a.click();
 
-    toast(`${tipo === "factura" ? "Factura" : "Cotización"} ${numero} ${isEditing ? "actualizada" : "generada"} y guardada en OneDrive`);
+    const nombreTipo = tipo === "factura" ? "Factura" : tipo === "recibo" ? "Recibo de ingreso" : "Cotización";
+    toast(`${nombreTipo} ${numero} ${isEditing ? "actualizada" : "generada"} y guardada en OneDrive`);
     editContext = null;
     form.reset();
     showView(isEditing ? "historial" : "dashboard");
@@ -320,14 +362,18 @@ async function submitDoc(formId, tipo, form) {
 
 async function deleteDocument(tipo, id) {
   if (!isAdmin()) { toast("Solo el módulo Administrativo puede eliminar documentos", true); return; }
-  const list = tipo === "factura" ? DB.facturas : DB.cotizaciones;
+  const list = listaPorTipo(tipo);
   const doc = list.find(d => d.id === id);
   if (!doc) return;
-  if (tipo === "factura" && doc.pagada) { toast("Esta factura ya está Saldada y no puede eliminarse", true); return; }
+  if ((tipo === "factura" || tipo === "recibo") && doc.pagada) {
+    toast(`Este documento ya está Saldado y no puede eliminarse`, true);
+    return;
+  }
 
+  const nombreTipo = tipo === "factura" ? "factura" : tipo === "recibo" ? "recibo" : "cotización";
   const confirmMsg = tipo === "factura"
-    ? `¿Eliminar la factura ${doc.numero} de ${doc.cliente}?\n\nEl comprobante fiscal ${doc.ncf} quedará disponible de nuevo para usarse en otra factura.`
-    : `¿Eliminar la cotización ${doc.numero} de ${doc.cliente}?`;
+    ? `¿Eliminar la factura ${doc.numero} de ${doc.cliente}?${doc.ncf ? `\n\nEl comprobante fiscal ${doc.ncf} quedará disponible de nuevo para usarse en otra factura.` : ""}`
+    : `¿Eliminar el ${nombreTipo} ${doc.numero} de ${doc.cliente}?`;
   if (!confirm(confirmMsg)) return;
 
   showLoading("Eliminando…");
@@ -337,7 +383,7 @@ async function deleteDocument(tipo, id) {
     const idx = list.findIndex(d => d.id === id);
     if (idx >= 0) list.splice(idx, 1);
     await dbSave();
-    toast(`${tipo === "factura" ? "Factura" : "Cotización"} ${doc.numero} eliminada${tipo === "factura" ? " · NCF liberado" : ""}`);
+    toast(`${nombreTipo.charAt(0).toUpperCase() + nombreTipo.slice(1)} ${doc.numero} eliminado${tipo === "factura" && doc.ncf ? " · NCF liberado" : ""}`);
     renderHistorial();
     renderDashboard();
   } catch (e) {
@@ -358,20 +404,49 @@ function docCardHtml(doc, tipo, allowEdit, allowDelete, allowView, allowPagoReal
       <span class="muted">${doc.fecha}</span>
       ${tipo === "factura" && doc.ncf ? `<span class="pill">${ncfTipoLabel(doc.ncfTipo || doc.ncf.substring(0, 3))} · ${doc.ncf}</span>` : ""}
       ${tipo === "factura" && !doc.ncf ? `<span class="pill pill-muted">NCF pendiente</span>` : ""}
-      ${tipo === "factura" && doc.pagada ? `<span class="pill pill-success">Saldada</span>` : ""}
+      ${tipo === "recibo" ? `<span class="pill pill-muted">Recibo de Ingreso</span>` : ""}
+      ${(tipo === "factura" || tipo === "recibo") && doc.pagada ? `<span class="pill pill-success">Saldada</span>` : ""}
     </div>
     <div class="doc-card-right">
       <div class="doc-card-total">$${fmtMoney(doc.total)}</div>
       ${allowView ? `<button type="button" class="btn btn-outline btn-sm" onclick="viewDocument('${tipo}','${doc.id}')">Ver</button>` : ""}
       ${allowEdit ? `<button type="button" class="btn btn-outline btn-sm" onclick="editDocument('${tipo}','${doc.id}')">Editar</button>` : ""}
-      ${allowPagoRealizado ? `<button type="button" class="btn btn-success btn-sm" onclick="handleMarcarPagada('${doc.id}')">Pago Realizado</button>` : ""}
+      ${allowPagoRealizado ? `<button type="button" class="btn btn-success btn-sm" onclick="handleMarcarPagada('${tipo}','${doc.id}')">Pago Realizado</button>` : ""}
       ${allowDelete ? `<button type="button" class="btn btn-danger btn-sm" onclick="deleteDocument('${tipo}','${doc.id}')">Eliminar</button>` : ""}
     </div>
   </div>`;
 }
 
-async function handleMarcarPagada(id) {
+async function handleMarcarPagada(tipo, id) {
   if (!isAdmin()) { toast("Solo el módulo Administrativo puede registrar pagos", true); return; }
+
+  if (tipo === "recibo") {
+    const r = DB.recibos.find(x => x.id === id);
+    if (!r) return;
+    if (!confirm(`¿Marcar el recibo ${r.numero} de ${r.cliente} como pagado?\n\nPasará de Pendientes a Saldadas.`)) return;
+    showLoading("Registrando pago…");
+    try {
+      marcarReciboPagado(id);
+      const blob = generateDocPdf(r, "recibo");
+      if (r.pdfPath) {
+        const parts = r.pdfPath.split("/");
+        const filename = parts.pop();
+        const subfolder = parts.pop();
+        r.pdfPath = await uploadPdf(subfolder, filename, blob);
+      }
+      await dbSave();
+      toast(`Recibo ${r.numero} marcado como Saldado`);
+      renderHistorial();
+      renderDashboard();
+    } catch (e) {
+      console.error(e);
+      toast("Error al actualizar: " + e.message, true);
+    } finally {
+      hideLoading();
+    }
+    return;
+  }
+
   const f = DB.facturas.find(x => x.id === id);
   if (!f) return;
 
@@ -412,7 +487,7 @@ async function handleMarcarPagada(id) {
 }
 
 function viewDocument(tipo, id) {
-  const list = tipo === "factura" ? DB.facturas : DB.cotizaciones;
+  const list = listaPorTipo(tipo);
   const doc = list.find(d => d.id === id);
   if (!doc) return;
   try {
@@ -429,10 +504,14 @@ function renderDashboard() {
   $("#dashCards").innerHTML = `
     <div class="card"><span class="card-num">${DB.cotizaciones.length}</span><span>Cotizaciones</span></div>
     <div class="card"><span class="card-num">${DB.facturas.length}</span><span>Facturas</span></div>
+    <div class="card"><span class="card-num">${DB.recibos.length}</span><span>Recibos de ingreso</span></div>
     <div class="card"><span class="card-num">${DB.ncfPool.filter(x => !x.usado).length}</span><span>NCF disponibles</span></div>
   `;
-  const recent = [...DB.cotizaciones.map(d => ({ ...d, tipo: "cotizacion" })), ...DB.facturas.map(d => ({ ...d, tipo: "factura" }))]
-    .sort((a, b) => (a.fecha < b.fecha ? 1 : -1)).slice(0, 8);
+  const recent = [
+    ...DB.cotizaciones.map(d => ({ ...d, tipo: "cotizacion" })),
+    ...DB.facturas.map(d => ({ ...d, tipo: "factura" })),
+    ...DB.recibos.map(d => ({ ...d, tipo: "recibo" }))
+  ].sort((a, b) => (a.fecha < b.fecha ? 1 : -1)).slice(0, 8);
   $("#dashRecent").innerHTML = recent.length
     ? recent.map(d => docCardHtml(d, d.tipo)).join("")
     : `<p class="hint">Aún no hay documentos generados.</p>`;
@@ -443,14 +522,25 @@ function renderHistorial() {
   $("#histCotizaciones").innerHTML = DB.cotizaciones.slice().reverse().map(d => docCardHtml(d, "cotizacion", true, admin, true)).join("") || `<p class="hint">Sin cotizaciones.</p>`;
 
   const facturas = DB.facturas.slice().reverse();
-  const pendientes = facturas.filter(f => !f.pagada);
-  const saldadas = facturas.filter(f => f.pagada);
+  const facPendientes = facturas.filter(f => !f.pagada);
+  const facSaldadas = facturas.filter(f => f.pagada);
   const renderFacturaGroup = (list, saldada) => list.map(d => docCardHtml(d, "factura", admin, admin && !saldada, true, admin && !d.pagada)).join("") || `<p class="hint">No hay facturas en este grupo.</p>`;
   $("#histFacturas").innerHTML = `
     <h3>Pendientes</h3>
-    <div class="doc-list">${renderFacturaGroup(pendientes, false)}</div>
+    <div class="doc-list">${renderFacturaGroup(facPendientes, false)}</div>
     <h3>Saldadas</h3>
-    <div class="doc-list">${renderFacturaGroup(saldadas, true)}</div>
+    <div class="doc-list">${renderFacturaGroup(facSaldadas, true)}</div>
+  `;
+
+  const recibos = DB.recibos.slice().reverse();
+  const recPendientes = recibos.filter(r => !r.pagada);
+  const recSaldados = recibos.filter(r => r.pagada);
+  const renderReciboGroup = (list, saldado) => list.map(d => docCardHtml(d, "recibo", admin, admin && !saldado, true, admin && !d.pagada)).join("") || `<p class="hint">No hay recibos en este grupo.</p>`;
+  $("#histRecibos").innerHTML = `
+    <h3>Pendientes</h3>
+    <div class="doc-list">${renderReciboGroup(recPendientes, false)}</div>
+    <h3>Saldadas</h3>
+    <div class="doc-list">${renderReciboGroup(recSaldados, true)}</div>
   `;
 
   $all(".tab-btn").forEach(b => b.onclick = () => {
@@ -458,6 +548,7 @@ function renderHistorial() {
     b.classList.add("active");
     $("#histCotizaciones").classList.toggle("hidden", b.dataset.tab !== "cotizaciones");
     $("#histFacturas").classList.toggle("hidden", b.dataset.tab !== "facturas");
+    $("#histRecibos").classList.toggle("hidden", b.dataset.tab !== "recibos");
   });
 }
 

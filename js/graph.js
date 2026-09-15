@@ -24,7 +24,7 @@ async function graphFetch(path, options = {}) {
 const ROOT = APP_CONFIG.rootFolder;
 
 async function ensureFolders() {
-  const paths = [ROOT, `${ROOT}/Cotizaciones`, `${ROOT}/Facturas`];
+  const paths = [ROOT, `${ROOT}/Cotizaciones`, `${ROOT}/Facturas`, `${ROOT}/Recibos`];
   for (const p of paths) {
     try {
       await graphFetch(`/me/drive/root:/${encodeURIComponent(p)}`);
