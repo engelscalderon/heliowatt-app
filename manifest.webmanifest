@@ -1,0 +1,14 @@
+{
+  "name": "HelioWatt · Cotizaciones y Facturas",
+  "short_name": "HelioWatt",
+  "description": "Cotizaciones, facturas y recibos de HelioWatt, S.R.L.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1c1c1c",
+  "icons": [
+    { "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}
